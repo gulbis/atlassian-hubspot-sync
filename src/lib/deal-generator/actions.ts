@@ -244,10 +244,14 @@ export class ActionGenerator {
   maybeMakeMetaAction(event: Exclude<DealRelevantEvent, RefundEvent>, deal: Deal | null, amount: number): Action | null {
     switch (event.meta) {
       case 'archived-app':
-      case 'mass-provider-only': {
+      case 'mass-provider-only':
+      case 'partner-only':
+      case 'partner-and-mass-provider-only': {
         const reason = (event.meta === 'archived-app'
           ? 'Archived-app transaction'
-          : 'Free-email-provider transaction'
+          : event.meta === 'partner-only' || event.meta === 'partner-and-mass-provider-only'
+            ? 'Partner-only transaction'
+            : 'Free-email-provider transaction'
         );
         if (!deal) {
           this.ignore(reason, amount);

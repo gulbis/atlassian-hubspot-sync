@@ -22,6 +22,7 @@ export type TestInput = {
   records: ReturnType<typeof abbrRecordDetails>[];
   partnerLicenseIds?: string[];
   uniqueEmailForLicenses?: string[];
+  archivedApps?: Set<string>;
 };
 
 export function runDealGeneratorTwice(input: TestInput) {
@@ -65,6 +66,7 @@ function processInput(input: TestInput): { config: EngineConfig; dataSet: DataSe
   const config: EngineConfig = {
     partnerDomains: new Set(),
     appToPlatform: Object.create(null),
+    archivedApps: input.archivedApps,
   };
 
   const addonKey = input.addonKey || chance.word({ capitalize: false, syllables: 3 });
