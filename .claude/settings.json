@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(npm run build)",
+      "Bash(npm test)",
+      "Bash(npm run once)",
+      "Bash(npx jest *)"
+    ]
+  }
+}
