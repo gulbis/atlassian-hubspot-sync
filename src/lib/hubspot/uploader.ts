@@ -21,9 +21,9 @@ export class HubspotUploader {
       await this.deleteBlockingDeals(hubspot.dealManager);
     }
 
-    await this.syncUpAllEntitiesProperties(hubspot.dealManager);
-    await this.syncUpAllEntitiesProperties(hubspot.contactManager);
-    await this.syncUpAllEntitiesProperties(hubspot.companyManager);
+    await this.trySyncProperties(hubspot.dealManager);
+    await this.trySyncProperties(hubspot.contactManager);
+    await this.trySyncProperties(hubspot.companyManager);
 
     await this.syncUpAllAssociations(hubspot.dealManager);
     await this.syncUpAllAssociations(hubspot.contactManager);
@@ -34,6 +34,14 @@ export class HubspotUploader {
     const blockingDealsIds = dealManager.blockingDealIds()
     this.#console?.printInfo(`Deleting ${blockingDealsIds.length} deals (blocking deals and their duplicates)`);
     return this.api.archiveEntities(dealManager.entityAdapter.kind, blockingDealsIds.map(id => ({ id })))
+  }
+
+  private async trySyncProperties<D extends Record<string, any>, E extends Entity<D>>(manager: EntityManager<D, E>) {
+    try {
+      await this.syncUpAllEntitiesProperties(manager);
+    } catch (e) {
+      this.#console?.printError('Uploader', `Failed to sync ${manager.entityAdapter.kind} properties`, e);
+    }
   }
 
   private async syncUpAllEntitiesProperties<D extends Record<string, any>, E extends Entity<D>>(manager: EntityManager<D, E>) {
