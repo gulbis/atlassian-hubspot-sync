@@ -109,7 +109,7 @@ describe('updating latest contact properties', () => {
     mergeContactInfo(a, [
       fakeContact({
         city: 'city1',
-        contactType: 'Partner',
+        contactType: 'atlassian_expert',
       }),
       fakeContact({
         state: 'state2',
@@ -120,7 +120,7 @@ describe('updating latest contact properties', () => {
     expect(a).toEqual(fakeContact({
       city: 'city1',
       state: 'state2',
-      contactType: 'Partner',
+      contactType: 'atlassian_expert',
     }));
   });
 
@@ -206,7 +206,7 @@ function fakeContact(props: Partial<GeneratedContact>): GeneratedContact {
   return {
     email: 'email1',
     lastUpdated: '2021-04-01',
-    contactType: 'Customer',
+    contactType: 'customer',
     country: 'country1',
     region: 'region1',
     deployment: new Set(['Server']),
