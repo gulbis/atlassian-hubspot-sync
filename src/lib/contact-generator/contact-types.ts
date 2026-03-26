@@ -11,6 +11,8 @@ export class ContactTypeFlagger {
     private freeEmailDomains: Set<string>,
     private partnerDomains: Set<string>,
     private customerDomains: Set<string>,
+    private eazybiPartnerDomains: Set<string>,
+    private eazybiCertifiedPartnerDomains: Set<string>,
   ) { }
 
   public identifyAndFlagContactTypes() {
@@ -45,15 +47,27 @@ export class ContactTypeFlagger {
     for (const domain of this.partnerDomains) {
       this.customerDomains.delete(domain);
     }
+    for (const domain of this.eazybiPartnerDomains) {
+      this.customerDomains.delete(domain);
+    }
+    for (const domain of this.eazybiCertifiedPartnerDomains) {
+      this.customerDomains.delete(domain);
+    }
   }
 
   private flagKnownContactTypesByDomain() {
     for (const contact of this.contactManager.getAll()) {
-      if (usesDomains(contact, this.partnerDomains)) {
-        contact.data.contactType = 'Partner';
+      if (usesDomains(contact, this.eazybiCertifiedPartnerDomains)) {
+        contact.data.contactType = 'certified_partner';
+      }
+      else if (usesDomains(contact, this.eazybiPartnerDomains)) {
+        contact.data.contactType = 'partner';
+      }
+      else if (usesDomains(contact, this.partnerDomains)) {
+        contact.data.contactType = 'atlassian_expert';
       }
       else if (usesDomains(contact, this.customerDomains)) {
-        contact.data.contactType = 'Customer';
+        contact.data.contactType = 'customer';
       }
     }
   }
@@ -69,12 +83,29 @@ export class ContactTypeFlagger {
 }
 
 export function flagPartnersViaCoworkers(coworkers: Contact[]) {
-  if (coworkers.some(c => c.isPartner)) {
+  const hasEazybiCertified = coworkers.some(c => c.data.contactType === 'certified_partner');
+  const hasEazybiPartner = coworkers.some(c => c.data.contactType === 'partner');
+  const hasMpacPartner = coworkers.some(c => c.data.contactType === 'atlassian_expert');
+
+  if (hasEazybiCertified) {
     for (const coworker of coworkers) {
-      coworker.data.contactType = 'Partner';
+      coworker.data.contactType = 'certified_partner';
       for (const company of coworker.companies.getAll()) {
         company.data.type = 'Partner';
       }
+    }
+  } else if (hasEazybiPartner) {
+    for (const coworker of coworkers) {
+      coworker.data.contactType = 'partner';
+      for (const company of coworker.companies.getAll()) {
+        company.data.type = 'Partner';
+      }
+    }
+  } else if (hasMpacPartner) {
+    for (const coworker of coworkers) {
+      coworker.data.contactType = 'atlassian_expert';
+      // Do NOT set company.data.type = 'Partner' for MPAC-only partners
+      // to prevent domain escalation creep on subsequent syncs
     }
   }
 }

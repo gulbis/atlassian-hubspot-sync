@@ -34,6 +34,8 @@ export class EventGenerator {
     private archivedApps: Set<string>,
     private partnerDomains: Set<string>,
     private freeEmailDomains: Set<string>,
+    private eazybiPartnerDomains: Set<string>,
+    private eazybiCertifiedPartnerDomains: Set<string>,
     private console?: ConsoleLogger
   ) { }
 
@@ -80,7 +82,8 @@ export class EventGenerator {
     const domains = new Set(records
         .filter(license => license.data.technicalContact)
         .map(license => license.data.technicalContact!.email.toLowerCase().split('@')[1]));
-    const partnerDomains = [...domains].filter(domain => this.partnerDomains.has(domain));
+    const partnerDomains = [...domains].filter(domain =>
+      this.partnerDomains.has(domain) || this.eazybiPartnerDomains.has(domain) || this.eazybiCertifiedPartnerDomains.has(domain));
     const freeEmailDomains = [...domains].filter(domain => this.freeEmailDomains.has(domain));
 
     if (domains.size == partnerDomains.length + freeEmailDomains.length) {

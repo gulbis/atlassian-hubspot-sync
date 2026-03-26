@@ -5,6 +5,7 @@ import { updateContactsBasedOnMatchResults } from "../contact-generator/update-c
 import { DataSet } from "../data/set";
 import { DealGenerator } from "../deal-generator/deal-generator";
 import { Hubspot } from "../hubspot/hubspot";
+import { FullEntity } from "../hubspot/interfaces";
 import { LicenseGrouper } from "../license-matching/license-grouper";
 import { ConsoleLogger } from "../log/console";
 import { LogDir } from "../log/logdir";
@@ -20,11 +21,18 @@ export type DealPropertyConfig = {
   dealDealName: string;
 };
 
+export type PartnerPipelineConfig = {
+  pipelineId: string;
+  partnerStages: Set<string>;
+  certifiedStages: Set<string>;
+};
+
 export interface EngineConfig {
   partnerDomains?: Set<string>;
   appToPlatform?: { [addonKey: string]: string };
   archivedApps?: Set<string>;
   dealProperties?: DealPropertyConfig;
+  partnerPipeline?: PartnerPipelineConfig;
 }
 
 export class Engine {
@@ -32,6 +40,8 @@ export class Engine {
   private step = 0;
 
   public partnerDomains = new Set<string>();
+  public eazybiPartnerDomains = new Set<string>();
+  public eazybiCertifiedPartnerDomains = new Set<string>();
   private customerDomains = new Set<string>();
 
   public tallier;
@@ -39,6 +49,7 @@ export class Engine {
   public appToPlatform: { [addonKey: string]: string };
   public archivedApps: Set<string>;
   public dealPropertyConfig: DealPropertyConfig;
+  private partnerPipelineConfig?: PartnerPipelineConfig;
 
   public hubspot!: Hubspot;
   public mpac!: Marketplace;
@@ -53,6 +64,7 @@ export class Engine {
     this.dealPropertyConfig = config?.dealProperties ?? {
       dealDealName: 'Deal'
     };
+    this.partnerPipelineConfig = config?.partnerPipeline;
   }
 
   public run(data: DataSet) {
@@ -67,6 +79,12 @@ export class Engine {
     this.logStep('Starting engine');
     this.startEngine();
 
+    const { eazybiPartnerDomains, eazybiCertifiedPartnerDomains } =
+      this.extractEazybiPartnerDomains(data.rawData.rawDeals);
+    this.eazybiPartnerDomains = eazybiPartnerDomains;
+    this.eazybiCertifiedPartnerDomains = eazybiCertifiedPartnerDomains;
+    this.logPartnerDomains();
+
     this.logStep('Identifying and Flagging Contact Types');
     const contactTypeFlagger = new ContactTypeFlagger(
       this.mpac.licenses,
@@ -75,6 +93,8 @@ export class Engine {
       this.freeEmailDomains,
       this.partnerDomains,
       this.customerDomains,
+      this.eazybiPartnerDomains,
+      this.eazybiCertifiedPartnerDomains,
     );
     contactTypeFlagger.identifyAndFlagContactTypes();
 
@@ -85,6 +105,8 @@ export class Engine {
       this.hubspot.contactManager,
       this.partnerDomains,
       this.archivedApps,
+      this.eazybiPartnerDomains,
+      this.eazybiCertifiedPartnerDomains,
     );
     contactGenerator.run();
 
@@ -142,6 +164,89 @@ export class Engine {
       this.console?.printInfo('Downloader', '  ' + row);
     }
 
+  }
+
+  private extractEazybiPartnerDomains(rawDeals: readonly FullEntity[]): {
+    eazybiPartnerDomains: Set<string>;
+    eazybiCertifiedPartnerDomains: Set<string>;
+  } {
+    const partnerDomains = new Set<string>();
+    const certifiedDomains = new Set<string>();
+    const config = this.partnerPipelineConfig;
+
+    if (!config) return { eazybiPartnerDomains: partnerDomains, eazybiCertifiedPartnerDomains: certifiedDomains };
+
+    const partnerCompanyIds = new Set<string>();
+    const certifiedCompanyIds = new Set<string>();
+
+    for (const rawDeal of rawDeals) {
+      if (rawDeal.properties['pipeline'] !== config.pipelineId) continue;
+      const stage = rawDeal.properties['dealstage'];
+
+      const targetSet = config.certifiedStages.has(stage) ? certifiedCompanyIds
+                      : config.partnerStages.has(stage) ? partnerCompanyIds
+                      : null;
+      if (!targetSet) continue;
+
+      for (const rawAssoc of rawDeal.associations) {
+        const [typeRaw, id] = rawAssoc.split(':');
+        const type = typeRaw.replace(/_unlabeled$/, '');
+        if (type === 'company' || (type.includes('_to_') && type.split('_to_').includes('company'))) {
+          targetSet.add(id);
+        }
+      }
+    }
+
+    // Certified wins over partner if company appears in both
+    for (const companyId of partnerCompanyIds) {
+      if (certifiedCompanyIds.has(companyId)) continue;
+      this.extractDomainsFromCompany(companyId, partnerDomains);
+    }
+    for (const companyId of certifiedCompanyIds) {
+      this.extractDomainsFromCompany(companyId, certifiedDomains);
+    }
+
+    return { eazybiPartnerDomains: partnerDomains, eazybiCertifiedPartnerDomains: certifiedDomains };
+  }
+
+  private extractDomainsFromCompany(companyId: string, domains: Set<string>) {
+    const company = this.hubspot.companyManager.get(companyId);
+    if (!company) return;
+    for (const contact of company.contacts.getAll()) {
+      if (contact.data.email) {
+        const domain = contact.data.email.split('@')[1];
+        if (domain && !this.freeEmailDomains.has(domain)) {
+          domains.add(domain);
+        }
+      }
+    }
+  }
+
+  private logPartnerDomains() {
+    const sortedPartner = [...this.eazybiPartnerDomains].sort();
+    const sortedCertified = [...this.eazybiCertifiedPartnerDomains].sort();
+
+    this.console?.printInfo('Engine', `Extracted ${sortedPartner.length} eazyBI Partner domains`);
+    for (const domain of sortedPartner) {
+      this.console?.printInfo('Engine', `  eazyBI Partner: ${domain}`);
+    }
+    this.console?.printInfo('Engine', `Extracted ${sortedCertified.length} eazyBI Certified Partner domains`);
+    for (const domain of sortedCertified) {
+      this.console?.printInfo('Engine', `  eazyBI Certified: ${domain}`);
+    }
+
+    const partnerDomainsFile = this.logDir?.partnerDomainsFile();
+    if (partnerDomainsFile) {
+      const stream = partnerDomainsFile.writeStream();
+      stream.writeLine(JSON.stringify({
+        eazybiPartnerDomains: sortedPartner,
+        eazybiCertifiedPartnerDomains: sortedCertified,
+        mpacPartnerDomains: [...this.partnerDomains].sort(),
+        partnerOverlap: sortedPartner.filter(d => this.partnerDomains.has(d)),
+        certifiedOverlap: sortedCertified.filter(d => this.partnerDomains.has(d)),
+      }, null, 2));
+      stream.close();
+    }
   }
 
   private logStep(description: string) {

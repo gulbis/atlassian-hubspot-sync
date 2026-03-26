@@ -5,7 +5,7 @@ import { Company } from "./company";
 import { License } from "./license";
 import { Transaction } from "./transaction";
 
-export type ContactType = 'Partner' | 'Customer';
+export type ContactType = 'certified_partner' | 'partner' | 'atlassian_expert' | 'customer';
 
 export type ContactData = {
   readonly email: string;
@@ -37,8 +37,8 @@ export class Contact extends Entity<ContactData> {
   public get isExternal() { return !this.data.email || !this.data.contactType; }
 
   public get allEmails() { return [this.data.email, ...this.otherEmails()]; }
-  public get isPartner() { return this.data.contactType === 'Partner'; }
-  public get isCustomer() { return this.data.contactType === 'Customer'; }
+  public get isPartner() { return this.data.contactType === 'certified_partner' || this.data.contactType === 'partner' || this.data.contactType === 'atlassian_expert'; }
+  public get isCustomer() { return this.data.contactType === 'customer'; }
 
   /** Sorted newest first */
   public records: (License | Transaction)[] = [];

@@ -12,6 +12,8 @@ export class LogDir {
   #checkMatchGroupsLog;
   #hubspotResultLog;
   #attributionsLog;
+  #dryRunReport;
+  #partnerDomainsFile;
 
   constructor(logDir?: DataDir) {
     this.#licenseScoringFile = fastMode ? undefined : logDir?.file('license-scoring.csv');
@@ -20,6 +22,8 @@ export class LogDir {
     this.#checkMatchGroupsLog = logDir?.file('matched-groups-to-check.csv');
     this.#hubspotResultLog = logDir?.file('hubspot-out.txt');
     this.#attributionsLog = logDir?.file('attributions.csv');
+    this.#dryRunReport = logDir?.file('dry-run-report.json');
+    this.#partnerDomainsFile = logDir?.file('eazybi-partner-domains.json');
   }
 
   public scoreLogger() {
@@ -41,5 +45,9 @@ export class LogDir {
   public checkMatchGroupsLog() { return this.#checkMatchGroupsLog?.writeCsvStream() }
 
   public attributionsLog() { return this.#attributionsLog }
+
+  public dryRunReportFile() { return this.#dryRunReport; }
+
+  public partnerDomainsFile() { return this.#partnerDomainsFile; }
 
 }

@@ -17,6 +17,8 @@ export class ContactGenerator {
     private contactManager: ContactManager,
     private partnerDomains: Set<string>,
     private archivedApps: Set<string>,
+    private eazybiPartnerDomains: Set<string>,
+    private eazybiCertifiedPartnerDomains: Set<string>,
   ) { }
 
   public run() {
@@ -93,7 +95,12 @@ export class ContactGenerator {
     if (lastName.match(NAME_URL_RE)) lastName = lastName.replace(NAME_URL_RE, '$1_$2');
 
     const domain = info.email.split('@')[1];
-    const contactType: ContactType = (this.partnerDomains.has(domain) ? 'Partner' : 'Customer');
+    const contactType: ContactType = (
+      this.eazybiCertifiedPartnerDomains.has(domain) ? 'certified_partner' :
+      this.eazybiPartnerDomains.has(domain) ? 'partner' :
+      this.partnerDomains.has(domain) ? 'atlassian_expert' :
+      'customer'
+    );
 
     return {
       email: info.email,
@@ -125,8 +132,12 @@ export function mergeContactInfo(contact: ContactData, contacts: GeneratedContac
   };
   contacts.push(currentContactProps);
 
-  if (contacts.some(c => c.contactType === 'Partner')) {
-    contact.contactType = 'Partner';
+  if (contacts.some(c => c.contactType === 'certified_partner')) {
+    contact.contactType = 'certified_partner';
+  } else if (contacts.some(c => c.contactType === 'partner')) {
+    contact.contactType = 'partner';
+  } else if (contacts.some(c => c.contactType === 'atlassian_expert')) {
+    contact.contactType = 'atlassian_expert';
   }
 
   const hasName = contacts.find(c => c.firstName && c.lastName);

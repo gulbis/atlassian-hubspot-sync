@@ -47,8 +47,8 @@ export function updateContactsBasedOnMatchResults(engine: Engine, allMatches: Re
     }
   }
 
-  setPartnerDomainFor(engine.partnerDomains, engine.mpac.licenses);
-  setPartnerDomainFor(engine.partnerDomains, engine.mpac.transactions);
+  setPartnerDomainFor(engine.partnerDomains, engine.eazybiPartnerDomains, engine.eazybiCertifiedPartnerDomains, engine.mpac.licenses);
+  setPartnerDomainFor(engine.partnerDomains, engine.eazybiPartnerDomains, engine.eazybiCertifiedPartnerDomains, engine.mpac.transactions);
 
   /**
    * If the contact's most recent record has a partner,
@@ -65,7 +65,7 @@ export function updateContactsBasedOnMatchResults(engine: Engine, allMatches: Re
   }
 }
 
-function setPartnerDomainFor(partnerDomains: Set<string>, records: (License | Transaction)[]) {
+function setPartnerDomainFor(partnerDomains: Set<string>, eazybiPartnerDomains: Set<string>, eazybiCertifiedPartnerDomains: Set<string>, records: (License | Transaction)[]) {
   for (const record of records) {
     const contactsToCheck = [
       record.partnerContact,
@@ -76,7 +76,7 @@ function setPartnerDomainFor(partnerDomains: Set<string>, records: (License | Tr
     record.partnerDomain = (contactsToCheck
       .flatMap(c => c.allEmails)
       .map(domainFor)
-      .find(domain => partnerDomains.has(domain))
+      .find(domain => partnerDomains.has(domain) || eazybiPartnerDomains.has(domain) || eazybiCertifiedPartnerDomains.has(domain))
       ?? null);
   }
 }

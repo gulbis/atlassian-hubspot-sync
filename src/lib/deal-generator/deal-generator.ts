@@ -110,6 +110,8 @@ export class DealGenerator {
       this.engine.archivedApps,
       this.engine.partnerDomains,
       this.engine.freeEmailDomains,
+      this.engine.eazybiPartnerDomains,
+      this.engine.eazybiCertifiedPartnerDomains,
       this.engine.console
     );
 

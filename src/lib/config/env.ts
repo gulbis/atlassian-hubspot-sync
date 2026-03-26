@@ -122,6 +122,7 @@ export function mpacConfigFromENV(): MpacConfig {
 }
 
 export function engineConfigFromENV(): EngineConfig {
+  const partnerPipelineId = optional('HUBSPOT_PIPELINE_PARTNER');
   return {
     partnerDomains: new Set(optional('PARTNER_DOMAINS')?.split(/\s*,\s*/g) ?? []),
     appToPlatform: Object.fromEntries<string>(
@@ -135,6 +136,11 @@ export function engineConfigFromENV(): EngineConfig {
       dealRelatedProducts: optional('DEAL_RELATED_PRODUCTS'),
       dealDealName: required('DEAL_DEALNAME'),
     },
+    partnerPipeline: partnerPipelineId ? {
+      pipelineId: partnerPipelineId,
+      partnerStages: new Set(optional('HUBSPOT_DEALSTAGES_EAZYBI_PARTNER')?.split(',') ?? []),
+      certifiedStages: new Set(optional('HUBSPOT_DEALSTAGE_EAZYBI_CERTIFIED')?.split(',') ?? []),
+    } : undefined,
   };
 }
 
