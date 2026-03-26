@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Git pre-push hook: runs build and tests before pushing.
+# Install: cp scripts/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+# Skip once: git push --no-verify
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+echo "pre-push: building TypeScript..."
+npm run build || {
+    echo "pre-push: build failed. Fix errors and try again."
+    exit 1
+}
+
+echo "pre-push: running tests..."
+npm test || {
+    echo "pre-push: tests failed. Fix errors and try again."
+    exit 1
+}
+
+echo "pre-push: all checks passed."
