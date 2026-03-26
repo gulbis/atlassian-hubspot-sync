@@ -143,6 +143,20 @@ function validateField<T extends Transaction | License, V>(o: T, accessor: (o: T
   if (!validator(val)) throw new AttachableError(`Missing field (in ${o.id}): ${path} (found ${JSON.stringify(val)})`, JSON.stringify(o, null, 2));
 }
 
+export function hasRequiredFields<T extends Transaction | License>(
+  record: T,
+  assertFn: (record: T) => void,
+  console?: ConsoleLogger,
+): boolean {
+  try {
+    assertFn(record);
+    return true;
+  } catch (e: any) {
+    console?.printWarning('MPAC', `Record ${record.id} failed validation; will be skipped: ${e.message}`);
+    return false;
+  }
+}
+
 export function hasTechEmail(license: License, console?: ConsoleLogger) {
   if (!license.data.technicalContact?.email) {
     const id = license.id;
