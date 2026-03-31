@@ -1,6 +1,48 @@
 # MPAC → HubSpot Property Map
 
-Field mapping reference for the Atlassian Marketplace (MPAC) to HubSpot CRM sync engine. Generated 2026-03-31.
+Field mapping reference for the Atlassian Marketplace (MPAC) to HubSpot CRM sync engine. Updated 2026-03-31.
+
+## HubSpot Custom Properties Required
+
+These custom contact properties must exist in HubSpot before running the sync.
+Group: `atlassian_licensing`. All are single-line text fields.
+
+### Contact Properties (custom, in `atlassian_licensing` group)
+
+| Property Name | Label | Purpose |
+|---|---|---|
+| `contact_type` | Contact Type | Four-tier classification: certified_partner / partner / atlassian_expert / customer |
+| `region` | Region | Geographic region from MPAC |
+| `aa_products` | Products | Semicolon-separated addon keys |
+| `related_products` | Related Products | Semicolon-separated platform names (Jira, Confluence) |
+| `deployment` | Deployment | Semicolon-separated: Server, Cloud, Data Center |
+| `license_tier` | License Tier | Highest user tier across all licenses |
+| `last_mpac_event` | Last MPAC Event | Most recent license/transaction date |
+| `associated_partner` | Last Associated Partner | Domain of most recent partner contact |
+| `utm_channel` | UTM Channel | Marketing channel (e.g., Organic Search, Paid Search, Direct) |
+| `utm_source` | UTM Source | Traffic source (e.g., google, bing) |
+| `utm_medium` | UTM Medium | Marketing medium (e.g., cpc, email) |
+| `utm_campaign` | UTM Campaign | Campaign name |
+| `utm_term` | UTM Term | Search keyword / term |
+| `utm_content` | UTM Content | Ad content identifier |
+| `utm_referrer` | UTM Referrer | Referring domain (e.g., www.google.com) |
+
+### Contact Properties (HubSpot built-in, no creation needed)
+
+| Property Name | Label | Purpose |
+|---|---|---|
+| `email` | Email | Contact identifier (upsert key) |
+| `firstname` | First Name | From MPAC tech/billing contact |
+| `lastname` | Last Name | From MPAC tech/billing contact |
+| `phone` | Phone | From MPAC tech contact |
+| `city` | City | From MPAC tech contact |
+| `state` | State | From MPAC tech contact |
+| `country` | Country | From MPAC license/transaction |
+| `hs_google_click_id` | Google Click ID | GCLID extracted from Marketplace URL |
+
+### Deal Properties (custom, in `atlassian_licensing` group)
+
+See `docs/ENV_REFERENCE.md` for full deal property list (15 properties configured via ENV vars).
 
 ## MPAC License Fields → HubSpot
 
@@ -36,12 +78,12 @@ Field mapping reference for the Atlassian Marketplace (MPAC) to HubSpot CRM sync
 | `partnerDetails.partnerType` | *Not mapped* | -- |
 | `partnerDetails.billingContact.email` | custom `associated_partner` (domain only) | Deal + Contact |
 | `partnerDetails.billingContact.name` | *Not mapped* | -- |
-| `attribution.channel` | `hs_analytics_source` (mapped to enum) | Contact |
-| `attribution.referrerDomain` | `hs_analytics_first_referrer` | Contact |
-| `attribution.campaignName` | `hs_analytics_first_touch_converting_campaign` | Contact |
-| `attribution.campaignSource` | `hs_analytics_source_data_1` | Contact |
-| `attribution.campaignMedium` | `hs_analytics_source_data_2` | Contact |
-| `attribution.campaignContent` | `hs_google_click_id` (if GCLID pattern `Cj...`) | Contact |
+| `attribution.channel` | custom `utm_channel` (normalized) | Contact |
+| `attribution.referrerDomain` | custom `utm_referrer` | Contact |
+| `attribution.campaignName` | custom `utm_campaign` | Contact |
+| `attribution.campaignSource` | custom `utm_source` | Contact |
+| `attribution.campaignMedium` | custom `utm_medium` | Contact |
+| `attribution.campaignContent` | `hs_google_click_id` (if GCLID pattern `Cj...`), else custom `utm_content` | Contact |
 | `parentProductBillingCycle` | *Not mapped* | -- |
 | `parentProductName` | *Not mapped* | -- |
 | `parentProductEdition` | *Not mapped* | -- |
@@ -88,62 +130,86 @@ Field mapping reference for the Atlassian Marketplace (MPAC) to HubSpot CRM sync
 
 ## MPAC Marketing-Attribution Endpoint → HubSpot
 
-Source B: REST v2 `/marketing-attribution/async/export` — per-touchpoint data with full URLs.
-One-to-many relationship (multiple touchpoints per license). Joined via `appEntitlementId` or `addonLicenseId`.
+**Endpoint:** `POST /rest/2/vendors/{sellerId}/reporting/marketing-attribution/async/export`
+
+This is a separate MPAC API endpoint that returns per-touchpoint marketing attribution data. Each record represents one user visit to the Marketplace listing, with the full page URL including UTM params, GCLIDs, and Google Ads metadata.
+
+**Relationship:** One-to-many — a single license can have multiple touchpoints (avg ~5.7). The engine selects the best touchpoint per contact (GCLID-bearing preferred, then most recent).
+
+**Join keys:** Touchpoints are matched to licenses via `appEntitlementId` (63% coverage) or `addonLicenseId` (37%). Combined, these cover all records.
+
+**Data coverage:** Active for 2026 and ongoing. ~3,500 touchpoints per quarter. Historical data available via `startDate` parameter.
 
 | MPAC Field (Touchpoint) | HubSpot Target | Entity | Notes |
 |---|---|---|---|
-| `channel` | `hs_analytics_source` (mapped to enum) | Contact | e.g., "paid-search-non-branded" → `PAID_SEARCH` |
-| `referrerDomain` | `hs_analytics_first_referrer` | Contact | Full URL form (e.g., `https://www.google.com/`) |
+| `channel` | custom `utm_channel` (normalized) | Contact | e.g., "paid-search-non-branded" → "Paid Search" |
+| `referrerDomain` | custom `utm_referrer` | Contact | Full URL form (e.g., `https://www.google.com/`) |
 | `marketplaceURL` → `gclid` param | `hs_google_click_id` | Contact | Parsed from URL query string |
-| `marketplaceURL` → `utm_source` param | `hs_analytics_source_data_1` | Contact | Parsed from URL; falls back to `campaignSource` |
-| `marketplaceURL` → `utm_medium` param | `hs_analytics_source_data_2` | Contact | Parsed from URL; falls back to `campaignMedium` |
-| `marketplaceURL` → `utm_campaign` param | `hs_analytics_first_touch_converting_campaign` | Contact | Parsed from URL; falls back to `campaignName` |
-| `campaignSource` | `hs_analytics_source_data_1` | Contact | Fallback if URL has no `utm_source` |
-| `campaignMedium` | `hs_analytics_source_data_2` | Contact | Fallback if URL has no `utm_medium` |
-| `campaignName` | `hs_analytics_first_touch_converting_campaign` | Contact | Fallback if URL has no `utm_campaign` |
-| `appEntitlementId` | *Join key to License* | -- | 63% of touchpoints |
-| `addonLicenseId` | *Join key to License* | -- | 37% of touchpoints |
+| `marketplaceURL` → `utm_source` param | custom `utm_source` | Contact | Parsed from URL; falls back to `campaignSource` |
+| `marketplaceURL` → `utm_medium` param | custom `utm_medium` | Contact | Parsed from URL; falls back to `campaignMedium` |
+| `marketplaceURL` → `utm_campaign` param | custom `utm_campaign` | Contact | Parsed from URL; falls back to `campaignName` |
+| `marketplaceURL` → `utm_term` param | custom `utm_term` | Contact | Parsed from URL |
+| `marketplaceURL` → `utm_content` param | custom `utm_content` | Contact | Parsed from URL; falls back to `campaignContent` |
+| `campaignSource` | custom `utm_source` | Contact | Fallback if URL has no `utm_source` |
+| `campaignMedium` | custom `utm_medium` | Contact | Fallback if URL has no `utm_medium` |
+| `campaignName` | custom `utm_campaign` | Contact | Fallback if URL has no `utm_campaign` |
+| `appEntitlementId` | *Join key to License* | -- | Cloud/DC licenses |
+| `addonLicenseId` | *Join key to License* | -- | Older Server/DC licenses |
 | `appEntitlementNumber` | *Join key (unused)* | -- | |
 | `eventTimestamp` | *Used for recency selection* | -- | |
 | `userId` | *Not mapped* | -- | |
 | `userType` | *Not mapped* | -- | |
-| `marketplaceURL` → `utm_content` | *Not mapped* | -- | |
-| `marketplaceURL` → `utm_term` | *Not mapped* | -- | |
-| `marketplaceURL` → `gbraid` | *Not mapped* | -- | |
+| `marketplaceURL` → `gbraid` | *Not mapped* | -- | Google Ads cookie ID |
 | `marketplaceURL` → `hsa_*` params | *Not mapped* | -- | Google Ads metadata |
 
-### Attribution Source Priority
+### Dual-Source Attribution Strategy
+
+The engine uses two data sources for attribution, applied in priority order:
+
+| Source | API | Date Range | Data | Status |
+|---|---|---|---|---|
+| **Source B** (preferred) | `/marketing-attribution/async/export` | 2018+ (via startDate) | Per-touchpoint with full URL | Active |
+| **Source A** (fallback) | License export `attribution.*` fields | 2018-07-01 to 2025-10-06 | Aggregated per license | Dead after Oct 2025 |
+
+### Touchpoint Selection Priority
 
 | Priority | Rule |
 |---|---|
-| 1 | **Source B** (marketing-attribution endpoint) preferred over Source A (license export) |
+| 1 | **Source B** (marketing-attribution) preferred over Source A (license export) |
 | 2 | **GCLID-bearing touchpoint** preferred over non-GCLID (regardless of recency) |
 | 3 | **Most recent** touchpoint by `eventTimestamp` among equal-priority |
 | 4 | **URL params** preferred over top-level API fields for UTM values |
 | 5 | Literal `"null"` string values filtered out |
 
-### Channel → `hs_analytics_source` Mapping
+### Channel Normalization (`utm_channel` values)
 
-| MPAC Channel (Source A) | MPAC Channel (Source B) | HubSpot Value |
+| MPAC Channel (Source A) | MPAC Channel (Source B) | Normalized Value |
 |---|---|---|
-| Organic search | organic | `ORGANIC_SEARCH` |
-| Paid Search | paid-search-non-branded, paid-search-branded | `PAID_SEARCH` |
-| Direct | direct | `DIRECT_TRAFFIC` |
-| Referral | referral-external, referral-internal | `REFERRALS` |
-| Email | email | `EMAIL_MARKETING` |
-| Social | unpaid-social | `SOCIAL_MEDIA` |
-| Paid Social | paid-social | `PAID_SOCIAL` |
-| Paid Display, Paid Other | paid-display, paid-affiliate | `PAID_SEARCH` |
-| Atlassian, Other | in-product-referral, self-referral, other | `OTHER_CAMPAIGNS` |
-| Atlassian Comarketing | — | `OTHER_CAMPAIGNS` |
-| *(unknown)* | *(unknown)* | `OTHER_CAMPAIGNS` |
+| Organic search | organic | Organic Search |
+| Paid Search | paid-search-non-branded | Paid Search |
+| — | paid-search-branded | Paid Search (Branded) |
+| Direct | direct | Direct |
+| Referral | referral-external | Referral |
+| — | referral-internal | Referral (Internal) |
+| — | self-referral | Self-Referral |
+| — | in-product-referral | In-Product Referral |
+| Email | email | Email |
+| Social | unpaid-social | Social |
+| Paid Social | paid-social | Paid Social |
+| Paid Display | paid-display | Paid Display |
+| Paid Other | paid-affiliate | Paid Affiliate |
+| Atlassian | — | Atlassian |
+| Atlassian Comarketing | — | Atlassian Comarketing |
+| Other | other | Other |
 
-### Attribution Data Coverage
+### GCLID Extraction
 
-- **Source A** (license export `attribution.*`): 75.8% of licenses from 2018-07-01 to 2025-10-06. Dead after Oct 2025.
-- **Source B** (marketing-attribution endpoint): Active. ~3,500 touchpoints/quarter, ~5.7 touchpoints per entitlement.
-- **GCLID**: 8 historical records (Source A), 7 in Q1 2026 (Source B via URL).
+GCLIDs are extracted from two locations:
+
+1. **Source B `marketplaceURL`** — parsed from `gclid=` query parameter (e.g., `?gclid=Cj0KCQ...`)
+2. **Source A `campaignContent`** — matched against Base64 GCLID pattern (`/^Cj[A-Za-z0-9_-]{60,120}$/`)
+
+Extracted GCLIDs are written to HubSpot's built-in `hs_google_click_id` property, which integrates with Google Ads conversion tracking.
 
 ## Computed/Derived HubSpot Fields (no direct MPAC source)
 

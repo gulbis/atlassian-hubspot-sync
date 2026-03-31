@@ -119,11 +119,13 @@ export class ContactGenerator {
       lastMpacEvent: '',
       lastUpdated: (item instanceof License ? item.data.lastUpdated : item.data.saleDate),
       lastAssociatedPartner: null,
-      analyticsSource: null,
-      analyticsFirstReferrer: null,
-      analyticsCampaign: null,
-      analyticsSourceData1: null,
-      analyticsSourceData2: null,
+      utmChannel: null,
+      utmSource: null,
+      utmMedium: null,
+      utmCampaign: null,
+      utmTerm: null,
+      utmContent: null,
+      utmReferrer: null,
       googleClickId: null,
     };
   }

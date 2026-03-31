@@ -65,28 +65,28 @@ describe('extractGclidFromContent', () => {
 });
 
 describe('mapChannelToHubspot', () => {
-  it('maps Source A channels', () => {
-    expect(mapChannelToHubspot('Organic search')).toBe('ORGANIC_SEARCH');
-    expect(mapChannelToHubspot('Paid Search')).toBe('PAID_SEARCH');
-    expect(mapChannelToHubspot('Direct')).toBe('DIRECT_TRAFFIC');
-    expect(mapChannelToHubspot('Referral')).toBe('REFERRALS');
-    expect(mapChannelToHubspot('Email')).toBe('EMAIL_MARKETING');
-    expect(mapChannelToHubspot('Social')).toBe('SOCIAL_MEDIA');
-    expect(mapChannelToHubspot('Atlassian')).toBe('OTHER_CAMPAIGNS');
+  it('maps Source A channels to normalized names', () => {
+    expect(mapChannelToHubspot('Organic search')).toBe('Organic Search');
+    expect(mapChannelToHubspot('Paid Search')).toBe('Paid Search');
+    expect(mapChannelToHubspot('Direct')).toBe('Direct');
+    expect(mapChannelToHubspot('Referral')).toBe('Referral');
+    expect(mapChannelToHubspot('Email')).toBe('Email');
+    expect(mapChannelToHubspot('Social')).toBe('Social');
+    expect(mapChannelToHubspot('Atlassian')).toBe('Atlassian');
   });
 
-  it('maps Source B channels', () => {
-    expect(mapChannelToHubspot('organic')).toBe('ORGANIC_SEARCH');
-    expect(mapChannelToHubspot('paid-search-non-branded')).toBe('PAID_SEARCH');
-    expect(mapChannelToHubspot('paid-search-branded')).toBe('PAID_SEARCH');
-    expect(mapChannelToHubspot('direct')).toBe('DIRECT_TRAFFIC');
-    expect(mapChannelToHubspot('referral-external')).toBe('REFERRALS');
-    expect(mapChannelToHubspot('in-product-referral')).toBe('OTHER_CAMPAIGNS');
-    expect(mapChannelToHubspot('email')).toBe('EMAIL_MARKETING');
+  it('maps Source B channels to normalized names', () => {
+    expect(mapChannelToHubspot('organic')).toBe('Organic Search');
+    expect(mapChannelToHubspot('paid-search-non-branded')).toBe('Paid Search');
+    expect(mapChannelToHubspot('paid-search-branded')).toBe('Paid Search (Branded)');
+    expect(mapChannelToHubspot('direct')).toBe('Direct');
+    expect(mapChannelToHubspot('referral-external')).toBe('Referral');
+    expect(mapChannelToHubspot('in-product-referral')).toBe('In-Product Referral');
+    expect(mapChannelToHubspot('email')).toBe('Email');
   });
 
-  it('defaults unknown channels to OTHER_CAMPAIGNS', () => {
-    expect(mapChannelToHubspot('unknown-channel')).toBe('OTHER_CAMPAIGNS');
+  it('defaults unknown channels to Other', () => {
+    expect(mapChannelToHubspot('unknown-channel')).toBe('Other');
   });
 });
 

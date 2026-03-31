@@ -281,11 +281,13 @@ export class Engine {
       }
 
       if (bestAttribution) {
-        contact.data.analyticsSource = mapChannelToHubspot(bestAttribution.channel);
-        contact.data.analyticsFirstReferrer = bestAttribution.referrerDomain;
-        contact.data.analyticsCampaign = bestAttribution.utmCampaign;
-        contact.data.analyticsSourceData1 = bestAttribution.utmSource;
-        contact.data.analyticsSourceData2 = bestAttribution.utmMedium;
+        contact.data.utmChannel = mapChannelToHubspot(bestAttribution.channel);
+        contact.data.utmSource = bestAttribution.utmSource;
+        contact.data.utmMedium = bestAttribution.utmMedium;
+        contact.data.utmCampaign = bestAttribution.utmCampaign;
+        contact.data.utmTerm = bestAttribution.utmTerm;
+        contact.data.utmContent = bestAttribution.utmContent;
+        contact.data.utmReferrer = bestAttribution.referrerDomain;
         contact.data.googleClickId = bestAttribution.gclid;
         enriched++;
         if (bestAttribution.gclid) withGclid++;

@@ -29,12 +29,14 @@ export type ContactData = {
 
   lastAssociatedPartner: string | null;
 
-  // Marketing attribution (mapped to HubSpot built-in properties)
-  analyticsSource: string | null;
-  analyticsFirstReferrer: string | null;
-  analyticsCampaign: string | null;
-  analyticsSourceData1: string | null;  // utm_source
-  analyticsSourceData2: string | null;  // utm_medium
+  // Marketing attribution
+  utmChannel: string | null;
+  utmSource: string | null;
+  utmMedium: string | null;
+  utmCampaign: string | null;
+  utmTerm: string | null;
+  utmContent: string | null;
+  utmReferrer: string | null;
   googleClickId: string | null;
 };
 
@@ -165,30 +167,40 @@ function makeAdapter(config: HubspotContactConfig): EntityAdapter<ContactData> {
         up: partner => partner ?? '',
       },
 
-      analyticsSource: {
-        property: 'hs_analytics_source',
-        down: source => source || null,
-        up: source => source ?? '',
+      utmChannel: {
+        property: 'utm_channel',
+        down: v => v || null,
+        up: v => v ?? '',
       },
-      analyticsFirstReferrer: {
-        property: 'hs_analytics_first_referrer',
-        down: referrer => referrer || null,
-        up: referrer => referrer ?? '',
+      utmSource: {
+        property: 'utm_source',
+        down: v => v || null,
+        up: v => v ?? '',
       },
-      analyticsCampaign: {
-        property: 'hs_analytics_first_touch_converting_campaign',
-        down: campaign => campaign || null,
-        up: campaign => campaign ?? '',
+      utmMedium: {
+        property: 'utm_medium',
+        down: v => v || null,
+        up: v => v ?? '',
       },
-      analyticsSourceData1: {
-        property: 'hs_analytics_source_data_1',
-        down: data1 => data1 || null,
-        up: data1 => data1 ?? '',
+      utmCampaign: {
+        property: 'utm_campaign',
+        down: v => v || null,
+        up: v => v ?? '',
       },
-      analyticsSourceData2: {
-        property: 'hs_analytics_source_data_2',
-        down: data2 => data2 || null,
-        up: data2 => data2 ?? '',
+      utmTerm: {
+        property: 'utm_term',
+        down: v => v || null,
+        up: v => v ?? '',
+      },
+      utmContent: {
+        property: 'utm_content',
+        down: v => v || null,
+        up: v => v ?? '',
+      },
+      utmReferrer: {
+        property: 'utm_referrer',
+        down: v => v || null,
+        up: v => v ?? '',
       },
       googleClickId: {
         property: 'hs_google_click_id',

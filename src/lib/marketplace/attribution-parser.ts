@@ -13,40 +13,40 @@ export interface ParsedAttribution {
   eventTimestamp: string;
 }
 
-/** MPAC channel values → HubSpot hs_analytics_source enum */
+/** MPAC channel values → normalized channel names for custom utm_channel field */
 const CHANNEL_MAP: Record<string, string> = {
   // Source A (license export) channel values
-  'Organic search': 'ORGANIC_SEARCH',
-  'Paid Search': 'PAID_SEARCH',
-  'Direct': 'DIRECT_TRAFFIC',
-  'Referral': 'REFERRALS',
-  'Email': 'EMAIL_MARKETING',
-  'Social': 'SOCIAL_MEDIA',
-  'Paid Social': 'PAID_SOCIAL',
-  'Paid Display': 'PAID_SEARCH',
-  'Paid Other': 'PAID_SEARCH',
-  'Atlassian': 'OTHER_CAMPAIGNS',
-  'Atlassian Comarketing': 'OTHER_CAMPAIGNS',
-  'Other': 'OTHER_CAMPAIGNS',
+  'Organic search': 'Organic Search',
+  'Paid Search': 'Paid Search',
+  'Direct': 'Direct',
+  'Referral': 'Referral',
+  'Email': 'Email',
+  'Social': 'Social',
+  'Paid Social': 'Paid Social',
+  'Paid Display': 'Paid Display',
+  'Paid Other': 'Paid Other',
+  'Atlassian': 'Atlassian',
+  'Atlassian Comarketing': 'Atlassian Comarketing',
+  'Other': 'Other',
   // Source B (marketing-attribution) channel values
-  'organic': 'ORGANIC_SEARCH',
-  'paid-search-non-branded': 'PAID_SEARCH',
-  'paid-search-branded': 'PAID_SEARCH',
-  'direct': 'DIRECT_TRAFFIC',
-  'referral-external': 'REFERRALS',
-  'referral-internal': 'REFERRALS',
-  'self-referral': 'OTHER_CAMPAIGNS',
-  'in-product-referral': 'OTHER_CAMPAIGNS',
-  'email': 'EMAIL_MARKETING',
-  'unpaid-social': 'SOCIAL_MEDIA',
-  'paid-social': 'PAID_SOCIAL',
-  'paid-display': 'PAID_SEARCH',
-  'paid-affiliate': 'PAID_SEARCH',
-  'other': 'OTHER_CAMPAIGNS',
+  'organic': 'Organic Search',
+  'paid-search-non-branded': 'Paid Search',
+  'paid-search-branded': 'Paid Search (Branded)',
+  'direct': 'Direct',
+  'referral-external': 'Referral',
+  'referral-internal': 'Referral (Internal)',
+  'self-referral': 'Self-Referral',
+  'in-product-referral': 'In-Product Referral',
+  'email': 'Email',
+  'unpaid-social': 'Social',
+  'paid-social': 'Paid Social',
+  'paid-display': 'Paid Display',
+  'paid-affiliate': 'Paid Affiliate',
+  'other': 'Other',
 };
 
 export function mapChannelToHubspot(channel: string): string {
-  return CHANNEL_MAP[channel] ?? 'OTHER_CAMPAIGNS';
+  return CHANNEL_MAP[channel] ?? 'Other';
 }
 
 /** Extract GCLID and UTM params from a marketplace URL. */
