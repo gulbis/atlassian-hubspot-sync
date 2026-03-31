@@ -1,6 +1,23 @@
 import { ContactInfo, PartnerInfo } from "../model/record";
 import { mapEmail } from '../engine/contacts/email-mapper'
 
+export interface RawAttribution {
+  appEntitlementId?: string;
+  appEntitlementNumber?: string;
+  addonLicenseId?: string;
+  addonKey: string;
+  channel: string;
+  referrerDomain?: string;
+  marketplaceURL?: string;
+  campaignName?: string;
+  campaignSource?: string;
+  campaignMedium?: string;
+  campaignContent?: string;
+  eventTimestamp: string;
+  userId?: string;
+  userType?: string;
+}
+
 export type RawTransactionContact = {
   email: string;
   name?: string;

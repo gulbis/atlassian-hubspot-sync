@@ -28,6 +28,14 @@ export type ContactData = {
   lastMpacEvent: string | null;
 
   lastAssociatedPartner: string | null;
+
+  // Marketing attribution (mapped to HubSpot built-in properties)
+  analyticsSource: string | null;
+  analyticsFirstReferrer: string | null;
+  analyticsCampaign: string | null;
+  analyticsSourceData1: string | null;  // utm_source
+  analyticsSourceData2: string | null;  // utm_medium
+  googleClickId: string | null;
 };
 
 export class Contact extends Entity<ContactData> {
@@ -155,6 +163,37 @@ function makeAdapter(config: HubspotContactConfig): EntityAdapter<ContactData> {
         property: config.attrs?.lastAssociatedPartner,
         down: partner => partner || null,
         up: partner => partner ?? '',
+      },
+
+      analyticsSource: {
+        property: 'hs_analytics_source',
+        down: source => source || null,
+        up: source => source ?? '',
+      },
+      analyticsFirstReferrer: {
+        property: 'hs_analytics_first_referrer',
+        down: referrer => referrer || null,
+        up: referrer => referrer ?? '',
+      },
+      analyticsCampaign: {
+        property: 'hs_analytics_first_touch_converting_campaign',
+        down: campaign => campaign || null,
+        up: campaign => campaign ?? '',
+      },
+      analyticsSourceData1: {
+        property: 'hs_analytics_source_data_1',
+        down: data1 => data1 || null,
+        up: data1 => data1 ?? '',
+      },
+      analyticsSourceData2: {
+        property: 'hs_analytics_source_data_2',
+        down: data2 => data2 || null,
+        up: data2 => data2 ?? '',
+      },
+      googleClickId: {
+        property: 'hs_google_click_id',
+        down: gclid => gclid || null,
+        up: gclid => gclid ?? '',
       },
     },
 

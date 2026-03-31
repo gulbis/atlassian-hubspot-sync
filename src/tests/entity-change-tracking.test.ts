@@ -207,6 +207,8 @@ describe('Managed fields', () => {
       relatedProducts: new Set(),
       licenseTier: null, lastMpacEvent: null,
       lastAssociatedPartner: null,
+      analyticsSource: null, analyticsFirstReferrer: null, analyticsCampaign: null,
+      analyticsSourceData1: null, analyticsSourceData2: null, googleClickId: null,
     });
 
     // New entity (no id) should have all fields set
@@ -375,6 +377,8 @@ describe('Association tracking', () => {
       relatedProducts: new Set(),
       licenseTier: null, lastMpacEvent: null,
       lastAssociatedPartner: null,
+      analyticsSource: null, analyticsFirstReferrer: null, analyticsCampaign: null,
+      analyticsSourceData1: null, analyticsSourceData2: null, googleClickId: null,
     });
 
     deal.contacts.add(contact);

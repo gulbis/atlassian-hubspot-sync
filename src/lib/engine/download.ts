@@ -29,6 +29,8 @@ export async function downloadAllData(console: ConsoleLogger, hubspotConfig: Hub
 
     transactions: logbox.wrap('Transactions', () => marketplaceAPI.downloadTransactions()),
 
+    rawAttributions: logbox.wrap('Marketing Attributions', () => marketplaceAPI.downloadMarketingAttributions()),
+
     freeDomains: logbox.wrap('Free Email Providers', () => downloadFreeEmailProviders()),
 
     rawDeals: logbox.wrap('Deals', () => hubspotAPI.downloadHubspotEntities(hubspot.dealManager.entityAdapter)),

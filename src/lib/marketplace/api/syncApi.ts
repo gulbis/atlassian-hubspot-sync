@@ -1,7 +1,7 @@
 import got from 'got';
 import { Progress } from '../../log/download';
 import { KnownError, AttachableError } from '../../util/errors';
-import { RawTransaction, RawLicense } from '../raw';
+import { RawAttribution, RawTransaction, RawLicense } from '../raw';
 import { MpacCreds, dataInsightDateRanges } from './api';
 
 export class SyncMarketplaceAPI {
@@ -16,6 +16,11 @@ export class SyncMarketplaceAPI {
   public async downloadLicensesWithoutDataInsights(): Promise<RawLicense[]> {
     const licenses = await this.downloadMarketplaceData('licenses', 'endDate=2018-07-01');
     return licenses as RawLicense[];
+  }
+
+  public async downloadMarketingAttributions(): Promise<RawAttribution[]> {
+    // Marketing-attribution is async-only; sync API cannot call it
+    return [];
   }
 
   public async downloadLicensesWithDataInsights(progress: Progress): Promise<RawLicense[]> {

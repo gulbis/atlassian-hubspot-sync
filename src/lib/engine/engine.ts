@@ -11,7 +11,11 @@ import { ConsoleLogger } from "../log/console";
 import { LogDir } from "../log/logdir";
 import { Table } from "../log/table";
 import { Tallier } from "../log/tallier";
+import { AttributionJoiner } from "../marketplace/attribution-joiner";
+import { mapChannelToHubspot, ParsedAttribution } from "../marketplace/attribution-parser";
 import { Marketplace } from "../marketplace/marketplace";
+import { RawAttribution } from "../marketplace/raw";
+import { License } from "../model/license";
 import { formatMoney, formatNumber } from "../util/formatters";
 import { printSummary } from "./summary";
 
@@ -120,6 +124,9 @@ export class Engine {
 
     this.logStep('Updating Contacts based on Match Results');
     updateContactsBasedOnMatchResults(this, allMatches);
+
+    this.logStep('Enriching Contacts with Marketing Attribution');
+    this.enrichContactsWithAttribution(data.rawData.rawAttributions);
 
     this.logStep('Generating deals');
     const dealGenerator = new DealGenerator(this);
@@ -247,6 +254,47 @@ export class Engine {
       }, null, 2));
       stream.close();
     }
+  }
+
+  private enrichContactsWithAttribution(rawAttributions: RawAttribution[]) {
+    const joiner = new AttributionJoiner(rawAttributions);
+
+    let enriched = 0;
+    let withGclid = 0;
+
+    for (const contact of this.hubspot.contactManager.getAll()) {
+      // Find the best attribution across all of this contact's licenses
+      let bestAttribution: ParsedAttribution | null = null;
+
+      for (const record of contact.records) {
+        if (!(record instanceof License)) continue;
+        const attr = joiner.getBestAttribution(record);
+        if (!attr) continue;
+
+        // GCLID always wins; otherwise most recent
+        if (!bestAttribution
+          || (attr.gclid && !bestAttribution.gclid)
+          || (attr.gclid && bestAttribution.gclid && attr.eventTimestamp > bestAttribution.eventTimestamp)
+          || (!bestAttribution.gclid && !attr.gclid && attr.eventTimestamp > bestAttribution.eventTimestamp)) {
+          bestAttribution = attr;
+        }
+      }
+
+      if (bestAttribution) {
+        contact.data.analyticsSource = mapChannelToHubspot(bestAttribution.channel);
+        contact.data.analyticsFirstReferrer = bestAttribution.referrerDomain;
+        contact.data.analyticsCampaign = bestAttribution.utmCampaign;
+        contact.data.analyticsSourceData1 = bestAttribution.utmSource;
+        contact.data.analyticsSourceData2 = bestAttribution.utmMedium;
+        contact.data.googleClickId = bestAttribution.gclid;
+        enriched++;
+        if (bestAttribution.gclid) withGclid++;
+      }
+    }
+
+    this.console?.printInfo('Attribution', `Enriched ${formatNumber(enriched)} contacts with attribution data`);
+    this.console?.printInfo('Attribution', `  ${formatNumber(withGclid)} contacts with GCLID`);
+    this.console?.printInfo('Attribution', `  ${formatNumber(rawAttributions.length)} marketing-attribution touchpoints loaded`);
   }
 
   private logStep(description: string) {

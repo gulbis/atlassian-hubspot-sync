@@ -220,6 +220,12 @@ function fakeContact(props: Partial<GeneratedContact>): GeneratedContact {
     licenseTier: null,
     relatedProducts: new Set(),
     lastAssociatedPartner: null,
+    analyticsSource: null,
+    analyticsFirstReferrer: null,
+    analyticsCampaign: null,
+    analyticsSourceData1: null,
+    analyticsSourceData2: null,
+    googleClickId: null,
     ...props
   };
 }

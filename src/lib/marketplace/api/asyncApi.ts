@@ -1,7 +1,7 @@
 import got from 'got';
 import { Progress } from '../../log/download';
 import { KnownError, AttachableError } from '../../util/errors';
-import { RawTransaction, RawLicense } from '../raw';
+import { RawAttribution, RawTransaction, RawLicense } from '../raw';
 import { MpacCreds } from './api';
 
 type ExportProcessInfo = {
@@ -26,9 +26,14 @@ export class AsyncMarketplaceAPI {
   }
 
   public async downloadLicensesWithDataInsights(progress: Progress): Promise<RawLicense[]> {
-    const licenses = await this.downloadMarketplaceData('licenses', 'startDate=2018-07-01');
+    const licenses = await this.downloadMarketplaceData('licenses', 'startDate=2018-07-01&withDataInsights=true');
     progress.tick();
     return licenses as RawLicense[];
+  }
+
+  public async downloadMarketingAttributions(): Promise<RawAttribution[]> {
+    const attributions = await this.downloadMarketplaceData('marketing-attribution');
+    return attributions as RawAttribution[];
   }
 
   private async downloadMarketplaceData<T>(subpath: string, queryParams: string = ''): Promise<T[]> {

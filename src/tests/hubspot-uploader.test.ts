@@ -119,6 +119,12 @@ function defaultContactData(overrides: Partial<ContactData> = {}): ContactData {
     licenseTier: null,
     lastMpacEvent: null,
     lastAssociatedPartner: null,
+    analyticsSource: null,
+    analyticsFirstReferrer: null,
+    analyticsCampaign: null,
+    analyticsSourceData1: null,
+    analyticsSourceData2: null,
+    googleClickId: null,
     ...overrides,
   };
 }

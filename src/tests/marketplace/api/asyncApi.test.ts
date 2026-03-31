@@ -64,7 +64,7 @@ describe('AsyncMarketplaceAPI', () => {
     const progressMock: Progress = { tick: () => {}, setCount: () => {} };
 
     const scope = nock(`https://marketplace.atlassian.com`)
-      .post(`/rest/2/vendors/${credentials.sellerId}/reporting/licenses/async/export?startDate=2018-07-01`)
+      .post(`/rest/2/vendors/${credentials.sellerId}/reporting/licenses/async/export?startDate=2018-07-01&withDataInsights=true`)
       .reply(200, exportResponseMock);
     const marketplaceAPI = new AsyncMarketplaceAPI(credentials, 1);
     const licenses = await marketplaceAPI.downloadLicensesWithDataInsights(progressMock);

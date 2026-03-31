@@ -409,6 +409,8 @@ describe('Contact field mappings', () => {
         relatedProducts: new Set(),
         licenseTier: null, lastMpacEvent: null,
         lastAssociatedPartner: null,
+        analyticsSource: null, analyticsFirstReferrer: null, analyticsCampaign: null,
+        analyticsSourceData1: null, analyticsSourceData2: null, googleClickId: null,
       });
       const changes = contact.getPropertyChanges() as Record<string, string>;
       // Sets should be joined with semicolons (order may vary)
@@ -427,6 +429,8 @@ describe('Contact field mappings', () => {
         relatedProducts: new Set(),
         licenseTier: null, lastMpacEvent: null,
         lastAssociatedPartner: null,
+        analyticsSource: null, analyticsFirstReferrer: null, analyticsCampaign: null,
+        analyticsSourceData1: null, analyticsSourceData2: null, googleClickId: null,
       });
       const changes = contact.getPropertyChanges() as Record<string, string>;
       expect(changes['firstname']).toBe('');

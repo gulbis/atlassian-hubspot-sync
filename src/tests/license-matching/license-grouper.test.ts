@@ -48,6 +48,7 @@ function makeDataSetAndRun(rawLicenses: RawLicense[], freeEmailDomains: string[]
     rawCompanies: [],
     rawContacts: [],
     rawDeals: [],
+    rawAttributions: [],
     transactions: [],
     licensesWithoutDataInsights: [],
     licensesWithDataInsights: rawLicenses,

@@ -1,7 +1,7 @@
 import { DateTime, Duration, Interval } from 'luxon';
 import { mpacCredsFromENV } from '../../config/env';
 import { Progress } from '../../log/download';
-import { RawLicense, RawTransaction } from '../raw';
+import { RawAttribution, RawLicense, RawTransaction } from '../raw';
 import { AsyncMarketplaceAPI } from './asyncApi';
 import { SyncMarketplaceAPI } from './syncApi';
 
@@ -49,6 +49,11 @@ export class MarketplaceAPI {
       this.singleApis.map((api) => api.downloadLicensesWithDataInsights(progress))
     );
     return licenseGroups.flat();
+  }
+
+  public async downloadMarketingAttributions(): Promise<RawAttribution[]> {
+    const groups = await Promise.all(this.singleApis.map((api) => api.downloadMarketingAttributions()));
+    return groups.flat();
   }
 
   private configureProgress(progress: Progress) {

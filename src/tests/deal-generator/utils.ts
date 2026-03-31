@@ -56,6 +56,7 @@ function processInput(input: TestInput): { config: EngineConfig; dataSet: DataSe
     rawCompanies: [],
     rawContacts: [],
     rawDeals: [],
+    rawAttributions: [],
     transactions: [],
     licensesWithoutDataInsights: [],
     licensesWithDataInsights: [],
