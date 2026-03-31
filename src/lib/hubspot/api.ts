@@ -8,6 +8,7 @@ import { typedEntries } from './manager';
 
 export type HubspotCreds = {
   accessToken: string,
+  basePath?: string,
 };
 
 export default class HubspotAPI {

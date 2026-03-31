@@ -21,6 +21,7 @@ export function deleteBlockingDeals() {
 export function hubspotCredsFromENV(): HubspotCreds {
   return {
     accessToken: required('HUBSPOT_ACCESS_TOKEN'),
+    basePath: optional('HUBSPOT_BASE_URL'),
   };
 }
 
