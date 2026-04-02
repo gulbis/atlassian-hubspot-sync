@@ -9,6 +9,8 @@ export type ResultEntity = {
   associations: RelativeAssociation[],
 };
 
+export type IndexedEntity = { index: number; result: ExistingEntity };
+
 export type RelativeAssociation = `${string}:${string}`;
 
 export type HubspotProperties = Record<string, string | null>;

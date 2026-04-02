@@ -3,7 +3,7 @@ import { hubspotCredsFromENV } from '../config/env';
 import { ConsoleLogger } from '../log/console';
 import { KnownError } from '../util/errors';
 import { batchesOf, isPresent } from '../util/helpers';
-import {Association, EntityAdapter, EntityId, EntityKind, ExistingEntity, NewEntity, RelativeAssociation} from './interfaces'
+import {Association, EntityAdapter, EntityId, EntityKind, ExistingEntity, IndexedEntity, NewEntity, RelativeAssociation} from './interfaces'
 import { typedEntries } from './manager';
 
 export type HubspotCreds = {
@@ -79,17 +79,26 @@ export default class HubspotAPI {
     );
   }
 
-  public async createEntities(kind: EntityKind, entities: NewEntity[]): Promise<ExistingEntity[]> {
-    const created: ExistingEntity[] = [];
-    await this.batchUpsert(kind, entities, async (batch) => await this.apiFor(kind).batchApi.create({inputs: batch})
-        .then(
-            ({body}) => created.push(...body.results),
-            (err) => {
-              this.console?.printError('HubSpot API', 'Error creating entities in batch', {kind, batch});
-              this.console?.printError('HubSpot API', 'Error', err.response?.body?.message ?? err);
-            })
-    );
-    return created;
+  public async createEntities(kind: EntityKind, entities: NewEntity[]): Promise<IndexedEntity[]> {
+    const batchSize = kind === 'contact' ? 10 : 100;
+    const groups = batchesOf(entities, batchSize);
+    const indexed: IndexedEntity[] = [];
+    let offset = 0;
+
+    for (const batch of groups) {
+      try {
+        const { body } = await this.apiFor(kind).batchApi.create({ inputs: batch });
+        for (let i = 0; i < body.results.length; i++) {
+          indexed.push({ index: offset + i, result: body.results[i] });
+        }
+      } catch (err: any) {
+        const msg = err.response?.body?.message ?? String(err);
+        this.console?.printError('HubSpot API', `Error creating ${kind} batch (offset ${offset}, size ${batch.length}): ${String(msg).substring(0, 200)}`);
+      }
+      offset += batch.length;
+    }
+
+    return indexed;
   }
 
   public async updateEntities(kind: EntityKind, entities: ExistingEntity[]): Promise<ExistingEntity[]> {

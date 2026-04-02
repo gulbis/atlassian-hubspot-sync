@@ -1,6 +1,6 @@
 import { HubspotUploader } from '../lib/hubspot/uploader';
 import { Hubspot } from '../lib/hubspot/hubspot';
-import { DealStage, EntityKind, ExistingEntity, NewEntity, Pipeline, Association } from '../lib/hubspot/interfaces';
+import { DealStage, EntityKind, ExistingEntity, IndexedEntity, NewEntity, Pipeline, Association } from '../lib/hubspot/interfaces';
 import { DealData } from '../lib/model/deal';
 import { ContactData } from '../lib/model/contact';
 
@@ -40,12 +40,15 @@ function resetMockApi() {
   callLog = [];
 
   mockApi = {
-    createEntities: jest.fn(async (kind: EntityKind, entities: NewEntity[]): Promise<ExistingEntity[]> => {
+    createEntities: jest.fn(async (kind: EntityKind, entities: NewEntity[]): Promise<IndexedEntity[]> => {
       callLog.push({ method: 'createEntities', kind, inputs: entities });
-      // Return created entities with generated ids, preserving all properties
+      // Return indexed entities with generated ids, preserving input order
       return entities.map((e, i) => ({
-        id: `created-${kind}-${i + 1}`,
-        properties: { ...e.properties },
+        index: i,
+        result: {
+          id: `created-${kind}-${i + 1}`,
+          properties: { ...e.properties },
+        },
       }));
     }),
 
@@ -233,27 +236,22 @@ describe('HubspotUploader — property sync: creates vs updates separation', () 
 
 });
 
-describe('HubspotUploader — identifier matching after create', () => {
+describe('HubspotUploader — index-based ID assignment after create', () => {
 
-  it('assigns the returned HubSpot id back to the in-memory entity using identifier fields', async () => {
+  it('assigns the returned HubSpot id back to the in-memory deal entity by index', async () => {
     const hubspot = makeHubspot();
     const newDeal = hubspot.dealManager.create(defaultDealData({
-      dealName: 'Identifier Match Test',
+      dealName: 'Index Match Test',
       addonLicenseId: 'ALI-MATCH-001',
-      transactionId: null,
-      transactionLineItemId: null,
-      appEntitlementId: null,
-      appEntitlementNumber: null,
     }));
 
     expect(newDeal.id).toBeNull();
 
-    // Mock createEntities to return the entity with matching identifiers
-    mockApi.createEntities.mockImplementation(async (kind: EntityKind, entities: NewEntity[]) => {
+    mockApi.createEntities.mockImplementation(async (kind: EntityKind, entities: NewEntity[]): Promise<IndexedEntity[]> => {
       callLog.push({ method: 'createEntities', kind, inputs: entities });
       return entities.map((e, i) => ({
-        id: 'hs-deal-99001',
-        properties: { ...e.properties },
+        index: i,
+        result: { id: 'hs-deal-99001', properties: { ...e.properties } },
       }));
     });
 
@@ -263,79 +261,46 @@ describe('HubspotUploader — identifier matching after create', () => {
     expect(newDeal.id).toBe('hs-deal-99001');
   });
 
-  it('matches by all identifier fields (addonLicenseId, transactionId, transactionLineItemId, appEntitlementId, appEntitlementNumber)', async () => {
+  it('assigns correct IDs when multiple entities are created', async () => {
     const hubspot = makeHubspot();
-    const deal = hubspot.dealManager.create(defaultDealData({
-      dealName: 'Multi-Identifier Deal',
-      addonLicenseId: 'ALI-5001',
-      transactionId: 'TX-5002',
-      transactionLineItemId: 'TXL-5003',
-      appEntitlementId: 'AEI-5004',
-      appEntitlementNumber: 'AEN-5005',
-    }));
+    const deal1 = hubspot.dealManager.create(defaultDealData({ dealName: 'Deal A', addonLicenseId: 'ALI-A' }));
+    const deal2 = hubspot.dealManager.create(defaultDealData({ dealName: 'Deal B', addonLicenseId: 'ALI-B' }));
 
-    // Return two results; only the one matching ALL identifiers should be picked
-    mockApi.createEntities.mockImplementation(async (kind: EntityKind, entities: NewEntity[]) => {
+    mockApi.createEntities.mockImplementation(async (kind: EntityKind, entities: NewEntity[]): Promise<IndexedEntity[]> => {
       callLog.push({ method: 'createEntities', kind, inputs: entities });
-      return [
-        {
-          id: 'hs-deal-wrong',
-          properties: {
-            addonLicenseId: 'ALI-5001',
-            transactionId: 'TX-DIFFERENT',
-            transactionLineItemId: 'TXL-5003',
-            appEntitlementId: 'AEI-5004',
-            appEntitlementNumber: 'AEN-5005',
-          },
-        },
-        {
-          id: 'hs-deal-correct',
-          properties: {
-            addonLicenseId: 'ALI-5001',
-            transactionId: 'TX-5002',
-            transactionLineItemId: 'TXL-5003',
-            appEntitlementId: 'AEI-5004',
-            appEntitlementNumber: 'AEN-5005',
-          },
-        },
-      ];
+      return entities.map((e, i) => ({
+        index: i,
+        result: { id: `hs-deal-${i + 1}`, properties: { ...e.properties } },
+      }));
     });
 
     const uploader = new HubspotUploader();
     await uploader.upsyncChangesToHubspot(hubspot);
 
-    expect(deal.id).toBe('hs-deal-correct');
+    expect(deal1.id).toBe('hs-deal-1');
+    expect(deal2.id).toBe('hs-deal-2');
   });
 
-  it('does not assign id when no matching result is found among returned entities', async () => {
+  it('leaves id null for entities in failed batches (missing from results)', async () => {
     const hubspot = makeHubspot();
     const deal = hubspot.dealManager.create(defaultDealData({
-      dealName: 'Unmatched Deal',
-      addonLicenseId: 'ALI-UNMATCHED',
+      dealName: 'Failed Batch Deal',
+      addonLicenseId: 'ALI-FAIL',
     }));
 
-    mockApi.createEntities.mockImplementation(async (kind: EntityKind, entities: NewEntity[]) => {
+    // Return empty array — simulates batch failure
+    mockApi.createEntities.mockImplementation(async (kind: EntityKind, entities: NewEntity[]): Promise<IndexedEntity[]> => {
       callLog.push({ method: 'createEntities', kind, inputs: entities });
-      return [{
-        id: 'hs-deal-other',
-        properties: {
-          addonLicenseId: 'ALI-TOTALLY-DIFFERENT',
-          transactionId: '',
-          transactionLineItemId: '',
-          appEntitlementId: '',
-          appEntitlementNumber: '',
-        },
-      }];
+      return [];
     });
 
     const uploader = new HubspotUploader();
     await uploader.upsyncChangesToHubspot(hubspot);
 
-    // The entity id should remain null because identifier matching failed
     expect(deal.id).toBeNull();
   });
 
-  it('matches contact by email identifier after create', async () => {
+  it('assigns HubSpot id to contact by index after create', async () => {
     const hubspot = makeHubspot();
     const newContact = hubspot.contactManager.create(defaultContactData({
       email: 'alice.johnson@techcorp.io',
@@ -345,11 +310,11 @@ describe('HubspotUploader — identifier matching after create', () => {
 
     expect(newContact.id).toBeNull();
 
-    mockApi.createEntities.mockImplementation(async (kind: EntityKind, entities: NewEntity[]) => {
+    mockApi.createEntities.mockImplementation(async (kind: EntityKind, entities: NewEntity[]): Promise<IndexedEntity[]> => {
       callLog.push({ method: 'createEntities', kind, inputs: entities });
-      return entities.map(e => ({
-        id: 'hs-contact-42001',
-        properties: { ...e.properties },
+      return entities.map((e, i) => ({
+        index: i,
+        result: { id: 'hs-contact-42001', properties: { ...e.properties } },
       }));
     });
 

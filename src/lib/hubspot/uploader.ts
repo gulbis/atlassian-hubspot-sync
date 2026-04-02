@@ -3,7 +3,7 @@ import HubspotAPI from "./api";
 import { Entity } from './entity';
 import { Hubspot } from './hubspot';
 import {EntityKind} from './interfaces';
-import { EntityManager, typedEntries } from "./manager";
+import { EntityManager } from "./manager";
 import {DealManager} from '../model/deal'
 import {deleteBlockingDeals} from '../config/env'
 
@@ -59,31 +59,14 @@ export class HubspotUploader {
         }))
       );
 
-      const identifiers = typedEntries(manager.entityAdapter.data).filter(([k, v]) => v.identifier);
-
-      for (const { e } of toCreate) {
-        const found = created.find(result => {
-          for (const [localIdKey, spec] of identifiers) {
-            const localVal = e.data[localIdKey];
-            const hsLocal = spec.up(localVal);
-            const hsRemote = result.properties[spec.property!] ?? '';
-            if (hsLocal !== hsRemote) return false;
-          }
-          return true;
-        });
-
-        if (!found) {
-          this.#console?.printError("Uploader", "Couldn't find", JSON.stringify({
-            local: e.data,
-            remotes: created.map(r => ({
-              id: r.id,
-              properties: r.properties,
-            })),
-          }, null, 2));
-        } else {
-        e.id = found.id;
+      for (const { index, result } of created) {
+        toCreate[index].e.id = result.id;
       }
-    }
+
+      const unmatched = toCreate.filter(({ e }) => e.id === null).length;
+      if (unmatched > 0) {
+        this.#console?.printWarning('Uploader', `${unmatched} ${manager.entityAdapter.kind}(s) not created (failed batches)`);
+      }
     }
 
     if (toUpdate.length > 0) {
