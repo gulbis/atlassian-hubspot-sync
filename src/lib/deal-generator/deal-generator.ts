@@ -130,18 +130,21 @@ export class DealGenerator {
       .filter(isPresent));
     contacts.sort(sorter(c => c.isCustomer ? -1 : 0));
 
-    const companies = (contacts
-      .filter(c => c.isCustomer)
-      .flatMap(c => c.companies.getAll()));
-
+    // Associate deal with contacts (multiple contacts per deal is fine)
     deal.contacts.clear();
     for (const contact of contacts) {
       deal.contacts.add(contact);
     }
 
+    // Associate deal with ONE company: the first customer contact's primary company
+    // HubSpot limits deals to 1 company association on non-Enterprise plans
     deal.companies.clear();
-    for (const company of companies) {
-      deal.companies.add(company);
+    const primaryCustomer = contacts.find(c => c.isCustomer);
+    if (primaryCustomer) {
+      const companies = primaryCustomer.companies.getAll();
+      if (companies.length > 0) {
+        deal.companies.add(companies[0]);
+      }
     }
   }
 
