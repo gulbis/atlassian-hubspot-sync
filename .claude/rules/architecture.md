@@ -21,7 +21,14 @@
 - Actions (create/update deals) in `src/lib/deal-generator/actions.ts`
 - Deal types: eval, purchase, renewal, upgrade, refund
 
+## Sync State & Incremental Sync
+- `data/sync-state.json` tracks last sync timestamp, baseline dataset ID, and failed uploads
+- `data/sync-log.jsonl` — append-only JSONL log of every sync run with per-entity stats
+- Download orchestrator (`src/lib/engine/download-orchestrator.ts`) decides full vs incremental
+- Merge logic (`src/lib/engine/incremental-download.ts`) combines delta with baseline by `licenseId`/`transactionId`
+- Engine always receives a complete `RawDataSet` — it never knows about sync modes
+
 ## Configuration
 - All config via ENV variables defined in `src/lib/config/env.ts`
-- 40+ variables covering API keys, HubSpot field mappings, feature flags
+- 50+ variables covering API keys, HubSpot field mappings, feature flags, sync configuration
 - See `.sample.env` for full reference

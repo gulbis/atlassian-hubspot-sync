@@ -46,14 +46,18 @@ $ npm run watch
 For general development:
 
 ```sh
-$ npm run download     # Download MPAC & HubSpot data
+$ npm run download     # Download data (incremental by default)
+$ npm run download -- --full  # Full download
 $ npm run once [fast]  # Dry-run engine once on cached inputs
+$ npm run sync         # Single sync run (incremental by default)
+$ npm run sync -- --full  # Force full re-download
 $ npm run 3x   [fast]  # Dry-run engine 3x, piping output to input
 ```
 
 * Data must be downloaded before local dry-runs
 * Engine log files are written under `data/[input-dir]/[log-dir]/`
 * Running with `fast` skips time-consuming logs
+* Sync state tracked in `data/sync-state.json`, logs in `data/sync-log.jsonl`
 
 Running tests:
 
@@ -66,80 +70,10 @@ $ npm run test -- --watchAll  # Run during dev
 ## Running in Production
 
 ```sh
-$ node out/bin/main.js  # This always uses live inputs/outputs
+$ node out/bin/main.js  # Continuous loop with incremental sync
 ```
 
-See [Analyse Data Shift](./docs/ANALYSE_DATA_SHIFT.md) docs for this sub-functionality.
+The engine uses **incremental sync** by default: only MPAC records changed since the last run are downloaded and merged with a cached baseline. A full re-download runs automatically every 7 days (configurable via `FULL_SYNC_INTERVAL_DAYS`).
 
-
-## Changelog
-
-### 0.5.1
-
-- Fixed bug preventing `HUBSPOT_ASSOCIATION_TYPE_MAPPINGS` from being used
-
-### 0.5.0
-
-- Changed Contact 'Deployment' field; see field in [HUBSPOT.md](./docs/HUBSPOT.md) for details
-- Fixed bug that might have prevented some multi-select fields from updating
-- Fixed bug that crashed the engine when deals have duplicates and they all have some manual activity
-- Deprecated `HUBSPOT_API_KEY` in favor of `HUBSPOT_ACCESS_TOKEN` with [private apps](https://developers.hubspot.com/docs/api/migrate-an-api-key-integration-to-a-private-app)
-- Added support for custom HubSpot API associations via ENV variable `HUBSPOT_ASSOCIATION_TYPE_MAPPINGS`
-
-### 0.4.1
-
-- Added Managed Fields; see [HUBSPOT.md](./docs/HUBSPOT.md) for details
-
-### 0.4.0
-
-- Added `KEEP_DATA_SETS` ENV variable.
-- Added `LATE_TRANSACTION_THRESHOLD_DAYS` ENV variable.
-- Added `npm run analyze-data-shift` task.
-- Main loop now analyzes and reports on data shift.
-
-### 0.3.0
-
-- Docker image now requires persistent `./data` directory
-- Engine logs now written to input subdirectory
-- Fixed occasional bug when writing large log files
-- Removed `loglevel` option
-  - Info statements are now logged to stdout
-  - Warnings and errors are now logged to stderr
-  - Verbose logs are now written to log files
-- Removed `savelogs` option
-  - Now always saves all logs
-  - Added `fast` option to skip slow logs
-
-### 0.2.0 (2022-01-19)
-
-CLI changes:
-
-- Renamed `npm start` to `npm run once`.
-- Renamed `npm run multiple` to `npm run 3x`.
-- Added `help` option.
-- Added `savelogs=somedir` option.
-- Removed `--cached-fns` option.
-- Removed `--in` and `--out`.
-  - `npm run once` always uses local IO (for local development)
-  - Docker image always uses remote IO (for production)
-- Removed `--` prefix from CLI arguments
-
-ENV changes:
-
-- Renamed ENV variables `MPAC_PASS` to `MPAC_API_KEY`
-- Added new HubSpot keys (see [HUBSPOT.md](./docs/HUBSPOT.md))
-
-Engine changes:
-
-- Added optional "Associated Partner" keys on Deals and Contacts.
-- Fixed bug where refunds sometimes weren't being processed by MAE.
-- Deals now always use transaction ID when available.
-- Refunded deals now have their amounts set to zero.
-- Purchased inactive licenses are set to closed-won if not refunded.
-- Sped up license scorer down to 12% original run time in some cases.
-- Fixed bug where duplicate deals were not correctly identified.
-- Fixed bug that sometimes didn't print some duplicate deals.
-
-### 0.1.0 (2021-11-25)
-
-- First public version
+See [Deployment Guide](./docs/DEPLOYMENT.md) for Docker setup and full configuration.
+See [Analyse Data Shift](./docs/ANALYSE_DATA_SHIFT.md) for data shift analysis.

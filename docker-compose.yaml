@@ -1,6 +1,14 @@
 services:
-  marketing-automation:
+  sync:
+    container_name: atlassian-hubspot-sync
+    build:
+      context: .
+      dockerfile: Dockerfile
     env_file:
       - .env
-    build:
-      dockerfile: ./Dockerfile
+    volumes:
+      - sync-data:/usr/src/app/data
+    restart: unless-stopped
+
+volumes:
+  sync-data:

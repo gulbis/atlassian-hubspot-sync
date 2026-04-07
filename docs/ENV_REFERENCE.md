@@ -2,7 +2,7 @@
 
 Complete reference for every `.env` variable used by the Atlassian-HubSpot sync engine. Variables are read at startup via `src/lib/config/env.ts`. Required variables cause `process.exit(1)` if missing.
 
-**Total: 49 variables** (15 required, 34 optional)
+**Total: 52 variables** (15 required, 37 optional)
 
 ---
 
@@ -342,31 +342,39 @@ ADDONKEY_PLATFORMS=com.eazybi.jira=Jira,com.eazybi.confluence=Confluence
 
 ---
 
+---
+
+## 14. Incremental Sync Configuration
+
+| Variable | Required | Default |
+|----------|----------|---------|
+| `FULL_SYNC_INTERVAL_DAYS` | No | `7` |
+| `INCREMENTAL_OVERLAP_DAYS` | No | `1` |
+| `UPLOAD_MAX_RETRY_COUNT` | No | `3` |
+
+### `FULL_SYNC_INTERVAL_DAYS`
+**What:** How many days between automatic full re-downloads. Incremental syncs run between full syncs, downloading only recently changed MPAC data and merging with the cached baseline.
+**Where:** `env.ts` via `incrementalSyncConfigFromENV()`.
+**Default:** `7` — weekly full sync as a safety net to catch any missed changes.
+
+### `INCREMENTAL_OVERLAP_DAYS`
+**What:** Days of overlap when calculating the incremental download start date. If last sync was April 7 with 1-day overlap, incremental starts from April 6.
+**Where:** `env.ts` via `incrementalSyncConfigFromENV()`.
+**Default:** `1` — handles timezone edge cases and API propagation delay.
+
+### `UPLOAD_MAX_RETRY_COUNT`
+**What:** Maximum number of times a failed entity upload will be retried across subsequent sync runs. After this limit, the failure is discarded.
+**Where:** `env.ts` via `incrementalSyncConfigFromENV()`.
+**Default:** `3`.
+
+---
+
 ## Configuration Status Summary
 
-### Ready
-- MPAC credentials (user, API key, seller ID)
-- HubSpot access token
-- HubSpot account ID
-- Run loop settings
-- Partner domains
-- Ignored apps
+All critical variables are configured and the system is in production. The `.env` file contains real values for pipeline IDs, deal stages, and MPAC credentials.
 
-### Needs Real Values Before Live Sync
-| Variable | Issue |
-|----------|-------|
-| `HUBSPOT_PIPELINE_MPAC` | Placeholder `1234567` — need real pipeline ID |
-| `HUBSPOT_DEALSTAGE_EVAL` | Placeholder `1234568` — need real stage ID |
-| `HUBSPOT_DEALSTAGE_CLOSED_WON` | Placeholder `1234569` — need real stage ID |
-| `HUBSPOT_DEALSTAGE_CLOSED_LOST` | Placeholder `1234570` — need real stage ID |
-| `ADDONKEY_PLATFORMS` | Sample values — need real eazyBI addon keys |
-| `SLACK_ERROR_CHANNEL_ID` | Placeholder `C12345ABCDE` — need real channel ID |
-| `IGNORED_EMAILS` | Sample values `foo@bar,qux` |
-| `EMAIL_MAPPINGS` | Sample self-mapping |
-| `HUBSPOT_ASSOCIATION_TYPE_MAPPINGS` | Sample values from `.sample.env` |
-
-### Optional / Can Skip Initially
-- `SLACK_API_TOKEN` / `SLACK_ERROR_CHANNEL_ID` — notifications, not critical
-- `DELETE_BLOCKING_DEALS` — safe to leave off
-- All `HUBSPOT_CONTACT_*_ATTR` fields — contacts will still be created, just without enrichment
-- All optional `HUBSPOT_DEAL_*_ATTR` fields — deals will be created with core fields only
+### Optional / Can Tune
+- `FULL_SYNC_INTERVAL_DAYS` — increase for less frequent full syncs (saves bandwidth)
+- `INCREMENTAL_OVERLAP_DAYS` — increase for more redundancy at cost of slightly more data
+- `UPLOAD_MAX_RETRY_COUNT` — increase to retry longer, decrease to fail-fast
+- `DELETE_BLOCKING_DEALS` — safe to leave off until duplicate detection is confirmed stable

@@ -1,20 +1,22 @@
 # Build TypeScript
-FROM node:16 AS build
+FROM node:20-alpine AS build
 WORKDIR /usr/src/app
-COPY package*.json ./
-COPY tsconfig.json ./
-COPY jest.config.js ./
+COPY package*.json tsconfig.json ./
 COPY src ./src
-RUN npm install
+RUN npm ci
 RUN npm run build
 
-# Install deps & build image
-FROM node:16
+# Production image
+FROM node:20-alpine
 WORKDIR /usr/src/app
-VOLUME /usr/src/app/data
+
 COPY package*.json ./
-RUN npm install --only=production
+RUN npm ci --omit=dev
+
 COPY --from=build /usr/src/app/out ./out
+
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS="--max-old-space-size=8192"
+
+# Default: continuous loop mode. Override with docker run ... node out/bin/run-sync.js
 CMD [ "node", "out/bin/main.js" ]

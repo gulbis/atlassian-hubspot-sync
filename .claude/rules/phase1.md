@@ -1,48 +1,28 @@
-# Phase 1: Test and Validate
+# Phase 1: Test and Validate — COMPLETE
 
-**Do not run a full production sync.** This phase is exploratory.
+All Phase 1 stages have been completed and the system is in production.
 
-## Execution Stages (in order)
+## Completed Stages
 
-1. **Code verification & safety audit** — verify email matching, pipeline isolation, duplicate handling, managed fields, upload batching, associations
-2. **Test suite hardening** — fill gaps in license matching, field mapping, upload mocking, contact merge, date handling, config validation
-3. **Credential setup** — map all env vars, obtain MPAC + HubSpot credentials, verify API connectivity
-4. **HubSpot pipeline & property prep** — audit existing properties, create "Atlassian Licensing" pipeline + custom properties
-5. **Data download & inspection** — fetch MPAC + HubSpot data, inspect volume/quality, configure partner domains and ignore lists
-6. **Dry-run analysis** — `npm run once` on cached data, inspect output, validate before any writes
-7. **Controlled live test** — single sync with HubSpot backup, spot-check results, verify no partner pipeline contamination
-8. **Production deployment** — continuous loop, Slack alerts, Docker deploy, monitoring
+1. **Code verification & safety audit** — DONE (see `docs/VERIFICATION_REPORT.md`)
+2. **Test suite hardening** — DONE (265+ tests, 19+ suites)
+3. **Credential setup** — DONE (all env vars populated)
+4. **HubSpot pipeline & property prep** — DONE (pipeline + custom properties created)
+5. **Data download & inspection** — DONE (115K licenses, 200K transactions)
+6. **Dry-run analysis** — DONE
+7. **Controlled live test** — DONE (all 4 phases, 2026-03-31)
+8. **Production deployment** — DONE (incremental sync deployed)
 
-Stages 1-2 are pure code work (no credentials or external systems needed).
+## Key Verified Facts
 
-## Key Findings
+- Contact matching = email-based upsert (safe, no duplicates)
+- Pipeline isolation: 5 safeguards prevent touching partner pipeline
+- Deal matching by MPAC IDs (addonLicenseId, appEntitlementId, transactionId)
+- Incremental sync enabled: daily syncs download only recent changes (~3-5 min vs ~18 min full)
 
-- **Dry-run mode**: `npm run once` processes cached data without uploading (safe)
-- **Email matching**: confirmed email-based upsert via `ContactManager.getByEmail` (safe — enriches, doesn't duplicate)
-- **Deal matching**: by MPAC IDs (addonLicenseId, appEntitlementId, transactionId)
-- **Pipeline isolation**: deals go to configured MPAC pipeline only — partner pipeline untouched if IDs differ
+## Current Operations
 
-## Goals Unlocked by CRM Enrichment
-
-- Contact segmentation by license type and value
-- Lifecycle stage automation (lead → customer based on license status)
-- Renewal workflows (triggered X days before renewal date)
-- Upgrade opportunity identification (customers on starter tier)
-- Churned customer detection (expired licenses with no renewal)
-
-## Definition of Done
-
-- [x] Dry-run mode confirmed (`npm run once`)
-- [x] Email matching behavior confirmed in code (email-based upsert)
-- [x] All code verification items audited and documented (see `docs/VERIFICATION_REPORT.md`)
-- [ ] Test suite covers: license matching, contact matching, deal creation, field mapping, date handling
-- [ ] All credentials identified and documented
-- [ ] "Atlassian Licensing" pipeline created in HubSpot
-- [ ] Custom field conflicts checked — no overwrites of existing properties
-- [ ] Dry-run output reviewed and approved — no anomalies
-- [ ] Controlled live test successful — objects visible in HubSpot and correct
-- [ ] Rollback plan documented (what to delete if something goes wrong)
-
-## Full Plan Reference
-
-See `/Users/swan/.claude/plans/deep-mixing-pixel.md` for detailed sub-tasks per stage.
+- `npm run sync` — daily incremental sync
+- `npm run sync -- --full` — weekly full re-download
+- Sync state: `data/sync-state.json`
+- Sync log: `data/sync-log.jsonl`

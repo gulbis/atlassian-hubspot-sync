@@ -2,3 +2,9 @@ node_modules
 npm-debug.log
 .env
 data
+out
+.git
+.claude
+docs
+*.md
+!package*.md

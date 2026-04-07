@@ -27,21 +27,26 @@ Finally: Deal, Company, and Contact changes are upsynced to HubSpot.
 
 ### Downloading data to operate on
 
-The engine downloads:
+The download phase has two modes, managed by the **download orchestrator** (`download-orchestrator.ts`):
 
-- All HubSpot Deals with Pipeline=MPAC
-- All HubSpot Contacts
-- All HubSpot Companies
-- All MPAC Licenses
-- All MPAC Transactions
+**Full sync** (weekly or `--full` flag):
+- Downloads all MPAC licenses (chunked into 2-month intervals), transactions, and attributions
+- Downloads all HubSpot deals (MPAC pipeline), contacts, and companies
+- Saves as the new baseline dataset for future incremental syncs
 
-It then transforms all these into in-memory representations to more easily work with: mutable HubSpot entities and immutable MPAC records.
+**Incremental sync** (default for daily runs):
+- Loads the cached baseline MPAC dataset from disk
+- Downloads only MPAC licenses and transactions modified since `lastSync - 1 day`
+- Downloads fresh HubSpot entities (always full — needed for change detection)
+- Merges delta into baseline by `licenseId`/`transactionId` (newer `lastUpdated` wins)
+- Verifies merge integrity (counts, no duplicates) — falls back to full on failure
+- Saves merged result as a normal dataset
 
-These in-memory HubSpot entities will be operated on throughout the rest of the engine run, and upsynced in the final step.
+The engine always receives a **complete dataset** regardless of sync mode. It never knows whether data came from a full download or an incremental merge.
 
-At this phase, MPAC contact fields are normalized, e.g. the literal string `"null"` is removed, newlines are removed, and fields are trimmed.
+Sync state is tracked in `data/sync-state.json` (last sync date, baseline ID, failed uploads). Sync history is logged to `data/sync-log.jsonl` (JSONL format, one entry per run with per-entity stats).
 
-We calculate on each record anything we can ahead of time here (currently only MPAC max-tier), and remove MPAC records with invalid emails.
+After loading, MPAC contact fields are normalized (the literal string `"null"` is removed, newlines are removed, and fields are trimmed), max-tier is calculated, and records with invalid emails are removed.
 
 ### Identifying contact types by MPAC data
 

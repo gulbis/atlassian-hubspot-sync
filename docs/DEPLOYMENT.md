@@ -34,6 +34,9 @@ Copy `.sample.env` to `.env` and fill in all values. See `docs/ENV_REFERENCE.md`
 | `RUN_INTERVAL` | Time between sync runs (e.g., `24h`, `12h`) |
 | `RETRY_INTERVAL` | Time between retries on error (e.g., `5m`) |
 | `RETRY_TIMES` | Number of retries before Slack alert |
+| `FULL_SYNC_INTERVAL_DAYS` | Force full re-download every N days (default: `7`) |
+| `INCREMENTAL_OVERLAP_DAYS` | Days of overlap for incremental ranges (default: `1`) |
+| `UPLOAD_MAX_RETRY_COUNT` | Max retries for failed uploads (default: `3`) |
 
 ### HubSpot Scopes Required
 
@@ -70,45 +73,67 @@ These must exist before running. Created via API (see `/tmp/hs-create-utm-proper
 docker build -t atlassian-hubspot-sync .
 ```
 
-### Run (loop mode)
+### Run with docker-compose (recommended)
 
 ```bash
+docker compose up -d          # Start in loop mode (background)
+docker compose logs -f        # Follow logs
+docker compose down           # Stop
+docker compose up -d --build  # Rebuild and restart after code changes
+```
+
+The `sync-data` volume persists downloaded MPAC/HubSpot data, sync state (`sync-state.json`), and sync logs (`sync-log.jsonl`) between container rebuilds. Critical for incremental sync — without persistent data, every run falls back to full download.
+
+### Run without docker-compose
+
+```bash
+# Loop mode (continuous)
 docker run -d \
   --name atlassian-hubspot-sync \
   --env-file .env \
   -v sync-data:/usr/src/app/data \
   --restart unless-stopped \
   atlassian-hubspot-sync
-```
 
-The `data` volume persists downloaded MPAC/HubSpot data between runs.
-
-### Run (single sync)
-
-```bash
+# Single sync (run once and exit)
 docker run --rm \
   --env-file .env \
   -v sync-data:/usr/src/app/data \
   atlassian-hubspot-sync \
   node out/bin/run-sync.js
+
+# Force full re-download
+docker run --rm \
+  --env-file .env \
+  -v sync-data:/usr/src/app/data \
+  atlassian-hubspot-sync \
+  node out/bin/run-sync.js --full
 ```
 
 ### Logs
 
 ```bash
 docker logs -f atlassian-hubspot-sync
+
+# View sync log (structured JSONL)
+docker exec atlassian-hubspot-sync cat data/sync-log.jsonl | jq .
+
+# View sync state
+docker exec atlassian-hubspot-sync cat data/sync-state.json | jq .
 ```
 
 ## CLI Commands
 
 | Command | Description |
 |---|---|
-| `npm run sync` | Single-run: download → engine → upload → exit |
-| `npm start` | Loop: same, repeats on `RUN_INTERVAL` |
+| `npm run sync` | Single-run sync (incremental by default) |
+| `npm run sync -- --full` | Force full re-download of all data |
+| `npm start` | Loop: repeats on `RUN_INTERVAL` (auto incremental/full) |
+| `npm run download` | Download data only (incremental by default) |
+| `npm run download -- --full` | Full download |
 | `npm run sample` | Fast dry-run on 10 contacts (~5 sec) |
 | `npm run once` | Full dry-run, no uploads |
 | `npm run dry-run` | Full dry-run with structured report |
-| `npm run download` | Download data only |
 | `npm test` | Run all tests (build first!) |
 
 ## Monitoring
@@ -126,14 +151,14 @@ For Docker health monitoring:
 
 ## Typical Sync Timing
 
-| Phase | Duration |
-|---|---|
-| Download (MPAC + HubSpot) | ~2 min |
-| Engine processing | ~7 min |
-| Upload (incremental changes) | ~1-5 min (depends on changes) |
-| **Total per sync** | **~10-15 min** |
+| Phase | Full Sync | Incremental Sync |
+|---|---|---|
+| Download (MPAC + HubSpot) | ~10-15 min | ~1-2 min |
+| Engine processing | ~7 min | ~7 min |
+| Upload | ~1-5 min | ~1-2 min |
+| **Total per sync** | **~18-27 min** | **~3-5 min** |
 
-First sync after deployment may take longer if there are many new records.
+The first sync is always full. Subsequent daily syncs are incremental (only MPAC records changed since last sync). A full sync runs automatically every `FULL_SYNC_INTERVAL_DAYS` (default 7) or on `--full` flag.
 
 ## Rollback
 
