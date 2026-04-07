@@ -104,7 +104,8 @@ export function mergeMpacData(
     transactionsAdded,
   };
 
-  console?.printInfo('Merge', `Licenses: ${stats.baselineLicenses} baseline + ${stats.deltaLicenses} delta → ${stats.mergedLicenses} merged (${licensesAdded} new, ${licensesReplaced} updated)`);
+  const uniqueBaselineLic = licenseMap.size - licensesAdded;  // Map size before adds = unique baseline after upserts
+  console?.printInfo('Merge', `Licenses: ${stats.baselineLicenses} baseline (${uniqueBaselineLic + licensesReplaced} unique) + ${stats.deltaLicenses} delta → ${stats.mergedLicenses} merged (${licensesAdded} new, ${licensesReplaced} updated)`);
   console?.printInfo('Merge', `Transactions: ${stats.baselineTransactions} baseline + ${stats.deltaTransactions} delta → ${stats.mergedTransactions} merged (${transactionsAdded} new, ${transactionsReplaced} updated)`);
 
   const merged: RawDataSet = {
@@ -125,6 +126,10 @@ export function mergeMpacData(
 /**
  * Verifies merge produced a valid dataset.
  * Returns true if OK, false if integrity check failed.
+ *
+ * Note: baseline CSVs may contain duplicate IDs (same license in multiple
+ * download windows). The merge Map deduplicates them, so we compare against
+ * unique baseline counts, not raw array lengths.
  */
 export function verifyMergeIntegrity(
   baseline: RawDataSet,
@@ -133,15 +138,18 @@ export function verifyMergeIntegrity(
 ): boolean {
   let ok = true;
 
-  // Merged should have >= licenses than baseline (licenses only grow)
-  if (merged.licensesWithDataInsights.length < baseline.licensesWithDataInsights.length) {
-    console?.printWarning('Merge', `License count decreased: ${baseline.licensesWithDataInsights.length} → ${merged.licensesWithDataInsights.length}`);
+  // Count unique IDs in baseline (raw array may have duplicates from overlapping download windows)
+  const uniqueBaselineLicenses = new Set(baseline.licensesWithDataInsights.map(l => l.licenseId)).size;
+  const uniqueBaselineTransactions = new Set(baseline.transactions.map(t => t.transactionId)).size;
+
+  // Merged (from Map) should have >= unique baseline count
+  if (merged.licensesWithDataInsights.length < uniqueBaselineLicenses) {
+    console?.printWarning('Merge', `Unique license count decreased: ${uniqueBaselineLicenses} → ${merged.licensesWithDataInsights.length}`);
     ok = false;
   }
 
-  // Merged should have >= transactions
-  if (merged.transactions.length < baseline.transactions.length) {
-    console?.printWarning('Merge', `Transaction count decreased: ${baseline.transactions.length} → ${merged.transactions.length}`);
+  if (merged.transactions.length < uniqueBaselineTransactions) {
+    console?.printWarning('Merge', `Unique transaction count decreased: ${uniqueBaselineTransactions} → ${merged.transactions.length}`);
     ok = false;
   }
 
