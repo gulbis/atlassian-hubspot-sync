@@ -12,6 +12,26 @@ export class Company extends Entity<CompanyData> {
 
   public contacts = this.makeDynamicAssociation<Contact>('contact');
 
+  /** Primary company domain from HubSpot */
+  get domain(): string | undefined {
+    return this.downloadedData['domain'] || undefined;
+  }
+
+  /** Secondary domains (semicolon-separated in HubSpot) */
+  get additionalDomains(): string[] {
+    const raw = this.downloadedData['hs_additional_domains'];
+    if (!raw) return [];
+    return raw.split(';').map(d => d.trim()).filter(d => d.length > 0);
+  }
+
+  /** All domains: primary + secondary */
+  get allDomains(): string[] {
+    const domains: string[] = [];
+    if (this.domain) domains.push(this.domain);
+    domains.push(...this.additionalDomains);
+    return domains;
+  }
+
 }
 
 export const CompanyAdapter: EntityAdapter<CompanyData> = {
@@ -35,7 +55,7 @@ export const CompanyAdapter: EntityAdapter<CompanyData> = {
     },
   },
 
-  additionalProperties: [],
+  additionalProperties: ['domain', 'hs_additional_domains'],
 
   managedFields: new Set(),
 

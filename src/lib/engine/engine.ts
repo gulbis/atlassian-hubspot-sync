@@ -219,12 +219,22 @@ export class Engine {
   private extractDomainsFromCompany(companyId: string, domains: Set<string>) {
     const company = this.hubspot.companyManager.get(companyId);
     if (!company) return;
+
+    const addDomain = (domain: string | undefined) => {
+      if (domain && !this.freeEmailDomains.has(domain.toLowerCase())) {
+        domains.add(domain.toLowerCase());
+      }
+    };
+
+    // Company-level domains (primary + secondary)
+    for (const d of company.allDomains) {
+      addDomain(d);
+    }
+
+    // Contact email domains (primary + secondary)
     for (const contact of company.contacts.getAll()) {
-      if (contact.data.email) {
-        const domain = contact.data.email.split('@')[1];
-        if (domain && !this.freeEmailDomains.has(domain)) {
-          domains.add(domain);
-        }
+      for (const email of contact.allEmails) {
+        addDomain(email.split('@')[1]);
       }
     }
   }
