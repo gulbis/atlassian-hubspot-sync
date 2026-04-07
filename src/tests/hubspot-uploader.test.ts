@@ -590,8 +590,9 @@ describe('HubspotUploader — error handling with Promise.allSettled', () => {
 
     const uploader = new HubspotUploader();
 
-    // Should NOT throw — Promise.allSettled swallows the rejection
-    await expect(uploader.upsyncChangesToHubspot(hubspot)).resolves.toBeUndefined();
+    // Should NOT throw — errors are caught and tracked in result
+    const result = await uploader.upsyncChangesToHubspot(hubspot);
+    expect(result).toBeDefined();
   });
 
   it('continues processing other entity types when one type fails during create', async () => {
