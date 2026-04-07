@@ -51,9 +51,32 @@ export class MarketplaceAPI {
     return licenseGroups.flat();
   }
 
+  public async downloadLicensesSince(since: string, progress: Progress): Promise<RawLicense[]> {
+    this.configureIncrementalProgress(since, progress);
+    const licenseGroups = await Promise.all(
+      this.singleApis.map((api) => api.downloadLicensesSince(since, progress))
+    );
+    return licenseGroups.flat();
+  }
+
+  public async downloadTransactionsSince(since: string): Promise<RawTransaction[]> {
+    const transactionGroups = await Promise.all(
+      this.singleApis.map((api) => api.downloadTransactionsSince(since))
+    );
+    return transactionGroups.flat();
+  }
+
   public async downloadMarketingAttributions(): Promise<RawAttribution[]> {
     const groups = await Promise.all(this.singleApis.map((api) => api.downloadMarketingAttributions()));
     return groups.flat();
+  }
+
+  private configureIncrementalProgress(since: string, progress: Progress) {
+    if (useAsyncApis) progress.setCount(this.singleApis.length);
+    else {
+      const dates = incrementalDateRanges(since);
+      progress.setCount(dates.length * this.singleApis.length);
+    }
   }
 
   private configureProgress(progress: Progress) {
@@ -67,6 +90,16 @@ export class MarketplaceAPI {
 
 export function dataInsightDateRanges() {
   return Interval.fromDateTimes(DateTime.local(2018, 7, 1), DateTime.local())
+    .splitBy(Duration.fromObject({ months: 2 }))
+    .map((int) => ({
+      startDate: int.start.toISODate(),
+      endDate: int.end.toISODate(),
+    }));
+}
+
+export function incrementalDateRanges(since: string) {
+  const sinceDate = DateTime.fromISO(since);
+  return Interval.fromDateTimes(sinceDate, DateTime.local())
     .splitBy(Duration.fromObject({ months: 2 }))
     .map((int) => ({
       startDate: int.start.toISODate(),

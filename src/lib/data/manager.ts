@@ -56,6 +56,16 @@ class DataManager {
     return dataSet;
   }
 
+  public loadRawDataSet(ms: number): RawDataSet {
+    const dirName = `in-${ms}`;
+    if (!this.#meta.timestamps.includes(ms)) {
+      throw new Error(`Data set [${dirName}] does not exist`);
+    }
+    const dataDir = DataDir.root.subdir(dirName);
+    const dataStore = new DataSetStore(dataDir);
+    return dataStore.load();
+  }
+
   public inflateDataSetFrom(ms: number) {
     const dirName = `in-${ms}`;
     if (!this.#meta.timestamps.includes(ms)) {

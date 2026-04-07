@@ -2,7 +2,7 @@ import got from 'got';
 import { Progress } from '../../log/download';
 import { KnownError, AttachableError } from '../../util/errors';
 import { RawAttribution, RawTransaction, RawLicense } from '../raw';
-import { MpacCreds, dataInsightDateRanges } from './api';
+import { MpacCreds, dataInsightDateRanges, incrementalDateRanges } from './api';
 
 export class SyncMarketplaceAPI {
   constructor(private creds: MpacCreds) {}
@@ -35,6 +35,25 @@ export class SyncMarketplaceAPI {
     });
     const licenses = (await Promise.all(promises)).flat();
     return licenses;
+  }
+
+  public async downloadLicensesSince(since: string, progress: Progress): Promise<RawLicense[]> {
+    const dates = incrementalDateRanges(since);
+    const promises = dates.map(async ({ startDate, endDate }) => {
+      const json: RawLicense[] = await this.downloadMarketplaceData(
+        'licenses',
+        `withDataInsights=true&startDate=${startDate}&endDate=${endDate}`
+      );
+      progress.tick(`${startDate}-${endDate}`);
+      return json;
+    });
+    const licenses = (await Promise.all(promises)).flat();
+    return licenses;
+  }
+
+  public async downloadTransactionsSince(since: string): Promise<RawTransaction[]> {
+    const transactions = await this.downloadMarketplaceData('sales/transactions', `startDate=${since}`);
+    return transactions as RawTransaction[];
   }
 
   private async downloadMarketplaceData<T>(subpath: string, queryParams: string = ''): Promise<T[]> {

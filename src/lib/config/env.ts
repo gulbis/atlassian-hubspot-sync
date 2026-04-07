@@ -145,6 +145,20 @@ export function engineConfigFromENV(): EngineConfig {
   };
 }
 
+export interface IncrementalSyncConfig {
+  fullSyncIntervalDays: number;
+  incrementalOverlapDays: number;
+  maxRetryCount: number;
+}
+
+export function incrementalSyncConfigFromENV(): IncrementalSyncConfig {
+  return {
+    fullSyncIntervalDays: +(optional('FULL_SYNC_INTERVAL_DAYS') ?? '7'),
+    incrementalOverlapDays: +(optional('INCREMENTAL_OVERLAP_DAYS') ?? '1'),
+    maxRetryCount: +(optional('UPLOAD_MAX_RETRY_COUNT') ?? '3'),
+  };
+}
+
 function required(key: string) {
   const value = process.env[key];
   if (!value) {

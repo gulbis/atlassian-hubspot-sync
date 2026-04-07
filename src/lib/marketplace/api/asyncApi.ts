@@ -31,6 +31,17 @@ export class AsyncMarketplaceAPI {
     return licenses as RawLicense[];
   }
 
+  public async downloadLicensesSince(since: string, progress: Progress): Promise<RawLicense[]> {
+    const licenses = await this.downloadMarketplaceData('licenses', `startDate=${since}&withDataInsights=true`);
+    progress.tick();
+    return licenses as RawLicense[];
+  }
+
+  public async downloadTransactionsSince(since: string): Promise<RawTransaction[]> {
+    const transactions = await this.downloadMarketplaceData('sales/transactions', `startDate=${since}`);
+    return transactions as RawTransaction[];
+  }
+
   public async downloadMarketingAttributions(): Promise<RawAttribution[]> {
     const attributions = await this.downloadMarketplaceData('marketing-attribution');
     return attributions as RawAttribution[];
