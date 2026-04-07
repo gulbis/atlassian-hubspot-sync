@@ -266,7 +266,7 @@ function makeAdapter(config: HubspotDealConfig): EntityAdapter<DealData> {
       amount: {
         property: 'amount',
         down: amount => !amount ? null : +amount,
-        up: amount => amount?.toString() ?? '',
+        up: amount => amount == null ? '' : Math.round(amount * 100) / 100 + '',
       },
       associatedPartner: {
         property: config.attrs?.associatedPartner,
