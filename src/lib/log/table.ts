@@ -47,7 +47,7 @@ export class Table {
   public eachRow() {
     const cols: number[] = [];
     for (let i = 0; i < this.colSpecs.length; i++) {
-      cols.push(Math.max(...this.rows.map(row => row[i].length)));
+      cols.push(this.rows.reduce((max, row) => Math.max(max, row[i].length), 0));
     }
 
     const padders: Record<string, (s: string, colIdx: number) => string> = {
