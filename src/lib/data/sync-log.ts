@@ -1,7 +1,7 @@
 import fs from 'fs';
-import { fileURLToPath, pathToFileURL, URL } from 'url';
 import { DateTime } from 'luxon';
 import DataDir from './dir';
+import { withAutoClose } from '../util/helpers';
 
 export interface SyncLogEntry {
   timestamp: string;
@@ -48,28 +48,23 @@ export interface EntityUploadStats {
 
 export class SyncLogger {
 
-  private filePath: string;
-
-  constructor() {
-    // Derive the absolute path using the same base as DataDir.root
-    const dataRootUrl = new URL('data/', new URL('../../', pathToFileURL(__dirname)));
-    this.filePath = fileURLToPath(new URL('sync-log.jsonl', dataRootUrl));
-  }
+  private file = DataDir.root.file<never>('sync-log.jsonl');
 
   public appendEntry(entry: SyncLogEntry): void {
-    const line = JSON.stringify(entry) + '\n';
-    fs.appendFileSync(this.filePath, line, 'utf8');
+    const line = JSON.stringify(entry);
+    // Read existing content, append new line, write back
+    const existing = [...this.file.readLines()].join('\n');
+    const content = existing ? existing + '\n' + line : line;
+    withAutoClose(this.file.writeStream(), stream => {
+      stream.writeLine(content);
+    });
   }
 
   public readRecent(limit: number = 20): SyncLogEntry[] {
-    if (!fs.existsSync(this.filePath)) return [];
+    const lines = [...this.file.readLines()].filter(l => l.trim());
+    if (lines.length === 0) return [];
 
-    const content = fs.readFileSync(this.filePath, 'utf8');
-    if (!content.trim()) return [];
-
-    const lines = content.trim().split('\n').filter(l => l.trim());
     const recent = lines.slice(-limit);
-
     return recent.map(line => {
       try {
         return JSON.parse(line) as SyncLogEntry;
