@@ -136,11 +136,11 @@ export default class HubspotAPI {
       await this.client.crm.associations.batchApi.create(fromKind, toKind, {
         inputs: inputBatch.map(input => mapAssociationInput(fromKind, input))
       }).catch(({response}) => {
-        this.console?.printError('HubSpot API', 'Error deleting associations', {
+        this.console?.printError('HubSpot API', 'Error creating associations', {
           fromKind,
           toKind,
           inputBatch,
-          hubspotResponse: response.body
+          hubspotResponse: response?.body
         });
       });
     }
@@ -155,7 +155,7 @@ export default class HubspotAPI {
           fromKind,
           toKind,
           inputBatch,
-          hubspotResponse: response.body
+          hubspotResponse: response?.body
         });
       });
     }

@@ -192,16 +192,18 @@ export class HubspotUploader {
       const toAdd = toSyncInKind.filter(changes => changes.op === 'add');
       const toDel = toSyncInKind.filter(changes => changes.op === 'del');
 
-      await this.api.createAssociations(
-        manager.entityAdapter.kind,
-        otherKind,
-        toAdd.map(changes => changes.inputs),
-      );
-
+      // Delete before create: HubSpot enforces 1 primary company per deal,
+      // so the old association must be removed before a new one can be added.
       await this.api.deleteAssociations(
         manager.entityAdapter.kind,
         otherKind,
         toDel.map(changes => changes.inputs),
+      );
+
+      await this.api.createAssociations(
+        manager.entityAdapter.kind,
+        otherKind,
+        toAdd.map(changes => changes.inputs),
       );
 
       created += toAdd.length;
