@@ -39,9 +39,10 @@ export class DataSet {
     this.mpac.importData(rawData, console);
 
     // Release HubSpot raw arrays after import — data is now in entity objects.
-    // Saves ~100 MB per dataset. fromDataSet() repopulates these before reuse.
+    // Saves ~80 MB per dataset. fromDataSet() repopulates these before reuse.
+    // rawDeals is kept: engine.extractEazybiPartnerDomains() needs ALL deals
+    // (including non-MPAC pipeline deals that were rejected during import).
     // MPAC arrays (licenses, transactions, attributions) are kept for fromDataSet()/3x runs.
-    rawData.rawDeals = [];
     rawData.rawCompanies = [];
     rawData.rawContacts = [];
   }
