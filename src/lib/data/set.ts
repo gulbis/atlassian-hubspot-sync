@@ -37,6 +37,13 @@ export class DataSet {
     this.freeEmailDomains = deriveMultiProviderDomainsSet(rawData.freeDomains);
     this.hubspot.importData(rawData, console);
     this.mpac.importData(rawData, console);
+
+    // Release HubSpot raw arrays after import — data is now in entity objects.
+    // Saves ~100 MB per dataset. fromDataSet() repopulates these before reuse.
+    // MPAC arrays (licenses, transactions, attributions) are kept for fromDataSet()/3x runs.
+    rawData.rawDeals = [];
+    rawData.rawCompanies = [];
+    rawData.rawContacts = [];
   }
 
 }
