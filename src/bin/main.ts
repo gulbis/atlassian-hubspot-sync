@@ -82,14 +82,7 @@ run(console, runLoopConfig, {
     console.printInfo('Main', 'Writing HubSpot change log file');
     logDir.hubspotOutputLogger()?.logResults(dataSet.hubspot);
 
-    console.printInfo('Main', 'Analyzing data shift');
-    const dataSets = loadDataSets(console);
-    const analyzer = new DataShiftAnalyzer(dataShiftConfigFromENV(), console);
-    const results = analyzer.run(dataSets);
-    const reporter = new DataShiftReporter(console, notifier);
-    reporter.report(results);
-
-    // Record success and write sync log
+    // Record success and write sync log BEFORE data shift analysis (which may OOM)
     syncState.recordSuccess(downloadResult.mode, downloadResult.dataSetId);
 
     const totalMs = Date.now() - startTime;
@@ -115,6 +108,18 @@ run(console, runLoopConfig, {
     const totalFailed = uploadResult.contacts.failed.length + uploadResult.deals.failed.length + uploadResult.companies.failed.length;
     logEntry.status = totalFailed > 0 ? 'partial_failure' : 'success';
     syncLogger.appendEntry(logEntry);
+
+    // Data shift analysis — optional, may fail on memory-constrained environments
+    try {
+      console.printInfo('Main', 'Analyzing data shift');
+      const dataSets = loadDataSets(console);
+      const analyzer = new DataShiftAnalyzer(dataShiftConfigFromENV(), console);
+      const results = analyzer.run(dataSets);
+      const reporter = new DataShiftReporter(console, notifier);
+      reporter.report(results);
+    } catch (e) {
+      console.printWarning('Main', 'Data shift analysis failed (likely out of memory) — skipping');
+    }
 
     console.printInfo('Main', `Done (${downloadResult.mode} sync, ${(totalMs / 60000).toFixed(1)} min)`);
   },

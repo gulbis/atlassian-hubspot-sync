@@ -86,17 +86,9 @@ async function main() {
   console2.printInfo('Sync', 'Writing change log');
   logDir.hubspotOutputLogger()?.logResults(dataSet.hubspot);
 
-  console2.printInfo('Sync', 'Analyzing data shift');
-  const dataSets = loadDataSets(console2);
-  const analyzer = new DataShiftAnalyzer(dataShiftConfigFromENV(), console2);
-  const results = analyzer.run(dataSets);
-  const reporter = new DataShiftReporter(console2, undefined);
-  reporter.report(results);
-
-  // Record success
+  // Record success and write sync log BEFORE data shift analysis (which may OOM)
   syncState.recordSuccess(downloadResult.mode, downloadResult.dataSetId);
 
-  // Write sync log
   const totalMs = Date.now() - startTime;
   const logEntry = buildSyncLogEntry(downloadResult, uploadResult, retryResult, {
     totalMs,
@@ -105,6 +97,18 @@ async function main() {
     uploadMs,
   }, engine);
   syncLogger.appendEntry(logEntry);
+
+  // Data shift analysis — optional, may fail on memory-constrained environments
+  try {
+    console2.printInfo('Sync', 'Analyzing data shift');
+    const dataSets = loadDataSets(console2);
+    const analyzer = new DataShiftAnalyzer(dataShiftConfigFromENV(), console2);
+    const results = analyzer.run(dataSets);
+    const reporter = new DataShiftReporter(console2, undefined);
+    reporter.report(results);
+  } catch (e) {
+    console2.printWarning('Sync', 'Data shift analysis failed (likely out of memory) — skipping');
+  }
 
   // Summary
   const durationMin = (totalMs / 60000).toFixed(1);
