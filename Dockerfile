@@ -16,7 +16,7 @@ RUN npm ci --omit=dev
 COPY --from=build /usr/src/app/out ./out
 
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=8192"
+ENV NODE_OPTIONS="--max-old-space-size=6144"
 
 # Default: continuous loop mode. Override with docker run ... node out/bin/run-sync.js
 CMD [ "node", "out/bin/main.js" ]
