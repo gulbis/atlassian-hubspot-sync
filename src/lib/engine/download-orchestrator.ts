@@ -3,6 +3,7 @@ import promiseAllProperties from 'promise-all-properties';
 import { DateTime } from 'luxon';
 import { IncrementalSyncConfig } from '../config/env';
 import { dataManager } from '../data/manager';
+import { RawDataSet } from '../data/raw';
 import { SyncStateManager } from '../data/sync-state';
 import HubspotAPI from '../hubspot/api';
 import { HubspotConfig, Hubspot } from '../hubspot/hubspot';
@@ -93,7 +94,7 @@ async function doIncrementalDownload(
   // Load baseline
   const baselineId = syncState.getState().baselineDataSetId!;
   console.printInfo('Orchestrator', `Loading baseline dataset in-${baselineId}`);
-  const baseline = dataManager.loadRawDataSet(baselineId);
+  let baseline: RawDataSet | null = dataManager.loadRawDataSet(baselineId);
   console.printInfo('Orchestrator', `Baseline: ${baseline.licensesWithDataInsights.length} licenses, ${baseline.transactions.length} transactions`);
 
   // Download incremental MPAC data + fresh HubSpot data in parallel
@@ -149,6 +150,9 @@ async function doIncrementalDownload(
     console.printWarning('Orchestrator', 'Merge integrity check failed — falling back to full download');
     return doFullDownload(console, hubspotConfig, syncState);
   }
+
+  // Release baseline to free ~155 MB before DataSet construction
+  baseline = null;
 
   // Save merged dataset
   const ms = dataManager.createDataSet(merged);
