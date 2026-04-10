@@ -15,10 +15,16 @@ export type RelativeAssociation = `${string}:${string}`;
 
 export type HubspotProperties = Record<string, string | null>;
 
+export type AssociationLabel = {
+  associationCategory: 'HUBSPOT_DEFINED' | 'USER_DEFINED';
+  associationTypeId: number;
+};
+
 export type Association = {
   fromId: string,
   toId: string,
   toType: string,
+  labels?: AssociationLabel[],
 };
 
 export type EntityKind = 'deal' | 'contact' | 'company';

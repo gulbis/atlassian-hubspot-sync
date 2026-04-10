@@ -1,4 +1,4 @@
-import { EntityAdapter, EntityKind, FullEntity, RelativeAssociation } from "./interfaces";
+import { AssociationLabel, EntityAdapter, EntityKind, FullEntity, RelativeAssociation } from "./interfaces";
 
 export interface Indexer<D extends Record<string, any>> {
   removeIndexesFor<K extends keyof D>(key: K, entity: Entity<D>): void;
@@ -14,6 +14,9 @@ export abstract class Entity<D extends Record<string, any>> {
 
   private oldAssocs = new Set<Entity<any>>();
   private newAssocs = new Set<Entity<any>>();
+
+  private oldAssocLabels = new Map<Entity<any>, AssociationLabel[]>();
+  private newAssocLabels = new Map<Entity<any>, AssociationLabel[]>();
 
   public readonly data: D;
 
@@ -90,16 +93,21 @@ export abstract class Entity<D extends Record<string, any>> {
   protected makeDynamicAssociation<T extends Entity<any>>(kind: EntityKind) {
     return {
       getAll: () => this.getAssociations(kind) as T[],
-      add: (entity: T) => this.addAssociation(entity, { firstSide: true, initial: false }),
+      add: (entity: T, labels?: AssociationLabel[]) => this.addAssociation(entity, { firstSide: true, initial: false, labels }),
       clear: () => this.clearAssociations(kind),
     };
   }
 
   /** Don't use directly; use deal.contacts.add(c) etc. */
-  public addAssociation(entity: Entity<any>, meta: { firstSide: boolean, initial: boolean }) {
-    if (meta.initial) this.oldAssocs.add(entity);
+  public addAssociation(entity: Entity<any>, meta: { firstSide: boolean, initial: boolean, labels?: AssociationLabel[] }) {
+    if (meta.initial) {
+      this.oldAssocs.add(entity);
+      if (meta.labels?.length) this.oldAssocLabels.set(entity, meta.labels);
+    }
     this.newAssocs.add(entity);
+    if (meta.labels?.length) this.newAssocLabels.set(entity, meta.labels);
 
+    // Labels are directional — don't propagate to reverse side
     if (meta.firstSide) entity.addAssociation(this, { firstSide: false, initial: meta.initial });
   }
 
@@ -111,6 +119,7 @@ export abstract class Entity<D extends Record<string, any>> {
     for (const e of this.newAssocs) {
       if (e.adapter.kind === kind) {
         this.newAssocs.delete(e);
+        this.newAssocLabels.delete(e);
       }
     }
   }
@@ -118,17 +127,28 @@ export abstract class Entity<D extends Record<string, any>> {
   public hasAssociationChanges() {
     return (
       [...this.oldAssocs].some(e => !this.newAssocs.has(e)) ||
-      [...this.newAssocs].some(e => !this.oldAssocs.has(e))
+      [...this.newAssocs].some(e => !this.oldAssocs.has(e)) ||
+      [...this.newAssocs].filter(e => this.oldAssocs.has(e)).some(e =>
+        !labelsEqual(this.oldAssocLabels.get(e) ?? [], this.newAssocLabels.get(e) ?? [])
+      )
     );
   }
 
   public getAssociationChanges() {
     const toAdd = [...this.newAssocs].filter(e => !this.oldAssocs.has(e));
     const toDel = [...this.oldAssocs].filter(e => !this.newAssocs.has(e));
+
+    // Detect label-only changes: entity stayed but labels differ
+    const labelChanged = [...this.newAssocs]
+      .filter(e => this.oldAssocs.has(e))
+      .filter(e => !labelsEqual(this.oldAssocLabels.get(e) ?? [], this.newAssocLabels.get(e) ?? []));
+
     return [
-      ...toAdd.map(e => ({ op: 'add', other: e })),
-      ...toDel.map(e => ({ op: 'del', other: e })),
-    ] as { op: 'add' | 'del', other: Entity<any> }[];
+      ...toDel.map(e => ({ op: 'del' as const, other: e, labels: this.oldAssocLabels.get(e) })),
+      ...labelChanged.map(e => ({ op: 'del' as const, other: e, labels: this.oldAssocLabels.get(e) })),
+      ...toAdd.map(e => ({ op: 'add' as const, other: e, labels: this.newAssocLabels.get(e) })),
+      ...labelChanged.map(e => ({ op: 'add' as const, other: e, labels: this.newAssocLabels.get(e) })),
+    ] as { op: 'add' | 'del', other: Entity<any>, labels?: AssociationLabel[] }[];
   }
 
   // Back transformation
@@ -163,4 +183,15 @@ export abstract class Entity<D extends Record<string, any>> {
     });
   }
 
+}
+
+function labelsEqual(a: AssociationLabel[], b: AssociationLabel[]): boolean {
+  if (a.length !== b.length) return false;
+  const sortKey = (l: AssociationLabel) => `${l.associationCategory}:${l.associationTypeId}`;
+  const sortedA = [...a].sort((x, y) => sortKey(x).localeCompare(sortKey(y)));
+  const sortedB = [...b].sort((x, y) => sortKey(x).localeCompare(sortKey(y)));
+  return sortedA.every((l, i) =>
+    l.associationCategory === sortedB[i].associationCategory &&
+    l.associationTypeId === sortedB[i].associationTypeId
+  );
 }

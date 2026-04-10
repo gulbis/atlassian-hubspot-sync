@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { DataShiftConfig } from '../data-shift/analyze';
 import { EngineConfig } from '../engine/engine';
+import { AssociationLabelService } from '../hubspot/association-labels';
 import { HubspotCreds } from '../hubspot/api';
 import { MultiMpacCreds } from '../marketplace/api/api';
 import { MpacConfig } from '../marketplace/marketplace';
@@ -22,6 +23,28 @@ export function hubspotCredsFromENV(): HubspotCreds {
   return {
     accessToken: required('HUBSPOT_ACCESS_TOKEN'),
     basePath: optional('HUBSPOT_BASE_URL'),
+  };
+}
+
+export type AssociationLabelEnvConfig = {
+  dealContactTechnical?: number;
+  dealContactBilling?: number;
+  dealContactPartner?: number;
+  dealCompanyCustomer?: number;
+  dealCompanyPartner?: number;
+};
+
+export function associationLabelsFromENV(): AssociationLabelEnvConfig {
+  const parse = (key: string) => {
+    const v = optional(key);
+    return v ? +v : undefined;
+  };
+  return {
+    dealContactTechnical: parse('HUBSPOT_ASSOC_DEAL_CONTACT_TECHNICAL'),
+    dealContactBilling: parse('HUBSPOT_ASSOC_DEAL_CONTACT_BILLING'),
+    dealContactPartner: parse('HUBSPOT_ASSOC_DEAL_CONTACT_PARTNER'),
+    dealCompanyCustomer: parse('HUBSPOT_ASSOC_DEAL_COMPANY_CUSTOMER'),
+    dealCompanyPartner: parse('HUBSPOT_ASSOC_DEAL_COMPANY_PARTNER'),
   };
 }
 
@@ -142,6 +165,7 @@ export function engineConfigFromENV(): EngineConfig {
       partnerStages: new Set(optional('HUBSPOT_DEALSTAGES_EAZYBI_PARTNER')?.split(',') ?? []),
       certifiedStages: new Set(optional('HUBSPOT_DEALSTAGE_EAZYBI_CERTIFIED')?.split(',') ?? []),
     } : undefined,
+    associationLabels: new AssociationLabelService(associationLabelsFromENV()),
   };
 }
 

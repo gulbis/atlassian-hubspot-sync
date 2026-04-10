@@ -867,3 +867,132 @@ describe('HubspotUploader — only changed properties are sent', () => {
   });
 
 });
+
+describe('HubspotUploader — labeled associations', () => {
+
+  it('passes labels through to createAssociations', async () => {
+    const hubspot = makeHubspot();
+
+    hubspot.dealManager.importEntities([{
+      id: 'deal-labeled-1',
+      properties: {
+        dealname: 'Labeled Test',
+        closedate: '2024-11-01T00:00:00Z',
+        pipeline: 'Pipeline',
+        dealstage: 'Eval',
+        addonLicenseId: 'ALI-LAB-1',
+        transactionId: '',
+        transactionLineItemId: '',
+        appEntitlementId: '',
+        appEntitlementNumber: '',
+      },
+      associations: [],
+    }]);
+    hubspot.contactManager.importEntities([{
+      id: 'contact-labeled-1',
+      properties: { email: 'labeled@techfirm.com' },
+      associations: [],
+    }]);
+
+    const deal = hubspot.dealManager.getArray()[0];
+    const contact = hubspot.contactManager.getArray()[0];
+    deal.contacts.add(contact, [{ associationCategory: 'USER_DEFINED', associationTypeId: 36 }]);
+
+    const uploader = new HubspotUploader();
+    await uploader.upsyncChangesToHubspot(hubspot);
+
+    const assocCreates = callLog.filter(c => c.method === 'createAssociations' && c.kind === 'deal' && c.otherKind === 'contact');
+    expect(assocCreates.length).toBe(1);
+    expect(assocCreates[0].inputs.length).toBe(1);
+    expect(assocCreates[0].inputs[0]).toEqual({
+      fromId: 'deal-labeled-1',
+      toId: 'contact-labeled-1',
+      toType: 'contact',
+      labels: [{ associationCategory: 'USER_DEFINED', associationTypeId: 36 }],
+    });
+  });
+
+  it('passes undefined labels for unlabeled associations', async () => {
+    const hubspot = makeHubspot();
+
+    hubspot.dealManager.importEntities([{
+      id: 'deal-unlabeled-1',
+      properties: {
+        dealname: 'Unlabeled Test',
+        closedate: '2024-11-02T00:00:00Z',
+        pipeline: 'Pipeline',
+        dealstage: 'Eval',
+        addonLicenseId: 'ALI-UNL-1',
+        transactionId: '',
+        transactionLineItemId: '',
+        appEntitlementId: '',
+        appEntitlementNumber: '',
+      },
+      associations: [],
+    }]);
+    hubspot.contactManager.importEntities([{
+      id: 'contact-unlabeled-1',
+      properties: { email: 'unlabeled@techfirm.com' },
+      associations: [],
+    }]);
+
+    const deal = hubspot.dealManager.getArray()[0];
+    const contact = hubspot.contactManager.getArray()[0];
+    deal.contacts.add(contact);  // No labels
+
+    const uploader = new HubspotUploader();
+    await uploader.upsyncChangesToHubspot(hubspot);
+
+    const assocCreates = callLog.filter(c => c.method === 'createAssociations' && c.kind === 'deal' && c.otherKind === 'contact');
+    expect(assocCreates.length).toBe(1);
+    expect(assocCreates[0].inputs[0].labels).toBeUndefined();
+  });
+
+  it('detects label-only change and issues delete+create', async () => {
+    const hubspot = makeHubspot();
+
+    // Import deal with pre-existing contact association (no labels)
+    const dealAssocs = hubspot.dealManager.importEntities([{
+      id: 'deal-relabel-1',
+      properties: {
+        dealname: 'Relabel Test',
+        closedate: '2024-11-03T00:00:00Z',
+        pipeline: 'Pipeline',
+        dealstage: 'Eval',
+        addonLicenseId: 'ALI-RL-1',
+        transactionId: '',
+        transactionLineItemId: '',
+        appEntitlementId: '',
+        appEntitlementNumber: '',
+      },
+      associations: ['contact:contact-relabel-1'],
+    }]);
+    hubspot.contactManager.importEntities([{
+      id: 'contact-relabel-1',
+      properties: { email: 'relabel@techfirm.com' },
+      associations: [],
+    }]);
+    hubspot.dealManager.linkEntities(dealAssocs, hubspot as any);
+
+    const deal = hubspot.dealManager.getArray()[0];
+    const contact = hubspot.contactManager.getArray()[0];
+
+    // Clear and re-add with labels (simulates engine re-generation)
+    deal.contacts.clear();
+    deal.contacts.add(contact, [{ associationCategory: 'USER_DEFINED', associationTypeId: 36 }]);
+
+    const uploader = new HubspotUploader();
+    await uploader.upsyncChangesToHubspot(hubspot);
+
+    // Should have both delete and create for the label change
+    const assocDeletes = callLog.filter(c => c.method === 'deleteAssociations' && c.kind === 'deal' && c.otherKind === 'contact');
+    const assocCreates = callLog.filter(c => c.method === 'createAssociations' && c.kind === 'deal' && c.otherKind === 'contact');
+
+    expect(assocDeletes.length).toBe(1);
+    expect(assocDeletes[0].inputs.length).toBe(1);
+    expect(assocCreates.length).toBe(1);
+    expect(assocCreates[0].inputs.length).toBe(1);
+    expect(assocCreates[0].inputs[0].labels).toEqual([{ associationCategory: 'USER_DEFINED', associationTypeId: 36 }]);
+  });
+
+});

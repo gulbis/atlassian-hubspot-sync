@@ -164,7 +164,7 @@ export class HubspotUploader {
     const toSync = (manager.getArray()
       .filter(e => e.hasAssociationChanges())
       .flatMap(e => e.getAssociationChanges()
-        .map(({ op, other }) => ({ op, from: e, to: other }))));
+        .map(({ op, other, labels }) => ({ op, from: e, to: other, labels }))));
 
     const upAssociations = (Object.entries(manager.entityAdapter.associations)
       .filter(([kind, dir]) => dir.includes('up'))
@@ -186,6 +186,7 @@ export class HubspotUploader {
             fromId: changes.from.guaranteedId(),
             toId: changes.to.guaranteedId(),
             toType: otherKind,
+            labels: changes.labels,
           }
         })));
 
