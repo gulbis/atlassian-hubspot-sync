@@ -66,4 +66,9 @@ export class CompanyManager extends EntityManager<CompanyData, Company> {
   protected override Entity = Company;
   public override entityAdapter = CompanyAdapter;
 
+  public getByDomain = this.makeIndex(
+    c => c.allDomains.map(d => d.toLowerCase()),
+    []
+  );
+
 }

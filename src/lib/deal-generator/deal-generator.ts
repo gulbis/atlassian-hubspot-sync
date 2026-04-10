@@ -136,14 +136,27 @@ export class DealGenerator {
       deal.contacts.add(contact);
     }
 
-    // Associate deal with ONE company: the first customer contact's primary company
-    // HubSpot limits deals to 1 company association on non-Enterprise plans
+    // Associate deal with ONE company based on the technical contact.
+    // Tier 1: tech contact's existing HubSpot company association.
+    // Tier 2: match tech contact's email domain against company domains.
     deal.companies.clear();
-    const primaryCustomer = contacts.find(c => c.isCustomer);
-    if (primaryCustomer) {
-      const companies = primaryCustomer.companies.getAll();
-      if (companies.length > 0) {
-        deal.companies.add(companies[0]);
+    const techEmails = [...new Set(records.map(r => r.techContact.data.email))];
+    const techContact = techEmails
+      .map(email => this.engine.hubspot.contactManager.getByEmail(email))
+      .filter(isPresent)[0];
+
+    if (techContact) {
+      const existingCompanies = techContact.companies.getAll();
+      if (existingCompanies.length > 0) {
+        deal.companies.add(existingCompanies[0]);
+      } else {
+        const domain = techContact.data.email?.split('@')[1]?.toLowerCase();
+        if (domain && !this.engine.freeEmailDomains.has(domain)) {
+          const company = this.engine.hubspot.companyManager.getByDomain(domain);
+          if (company) {
+            deal.companies.add(company);
+          }
+        }
       }
     }
   }
