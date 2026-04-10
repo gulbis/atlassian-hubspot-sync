@@ -12,6 +12,14 @@ export function loadDataSets(console: ConsoleLogger) {
   // (each dataset is ~2.5 GB in memory with entity objects + associations)
   const recentIds = allIds.slice(0, 2);
 
+  // Skip if heap is already above 50% — loading 2 more datasets would OOM
+  const mem = process.memoryUsage();
+  const heapPct = mem.heapUsed / mem.heapTotal;
+  if (heapPct > 0.5) {
+    console.printInfo('Data Shift Analyzer', `Skipping — heap already at ${(heapPct * 100).toFixed()}% (${(mem.heapUsed / 1024 / 1024).toFixed()} MB), not enough room for 2 datasets`);
+    return [];
+  }
+
   console.printInfo('Data Shift Analyzer', `Loading ${recentIds.length} most recent data sets (of ${allIds.length} total)`);
   console.printInfo('Data Shift Analyzer', 'Node.js Memory Usage', memoryUsage());
   const dataSets = recentIds.sort().map(id => {
