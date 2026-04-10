@@ -259,7 +259,7 @@ describe('EventGenerator (isolated)', () => {
 
   describe('getEventMeta', () => {
 
-    it('returns partner-only when all contact domains are partner domains', () => {
+    it('returns null meta for partner-domain contacts (partner-only no longer blocks)', () => {
       const partnerDomains = new Set(['partner-corp.com']);
       const gen = new EventGenerator(new Set(), partnerDomains, new Set(), new Set(), new Set());
 
@@ -279,8 +279,8 @@ describe('EventGenerator (isolated)', () => {
 
       expect(events).toHaveLength(1);
       expect(events[0].type).toBe('purchase');
-      // When the sole contact is from a partner domain, meta should be partner-only
-      expect((events[0] as any).meta).toBe('partner-only');
+      // Partner-only transactions now create deals normally
+      expect((events[0] as any).meta).toBeNull();
     });
 
     it('returns archived-app when addonKey is in archived set', () => {
@@ -414,7 +414,7 @@ describe('ActionGenerator', () => {
 
   describe('maybeMakeMetaAction', () => {
 
-    it('returns noop for partner-only purchase events', () => {
+    it('creates deal for partner-domain contacts (no longer noop)', () => {
       const { actions } = runDealGenerator({
         records: [
           ['LIC-9001', '2024-07-01', 'COMMERCIAL', 'active', [
@@ -424,11 +424,9 @@ describe('ActionGenerator', () => {
         partnerLicenseIds: ['LIC-9001'],
       });
 
-      // When all contacts are from partner domains and there is a New transaction,
-      // the action should be noop with 'partner-only' reason.
-      expect(actions).toEqual([
-        { Nothing: ['partner-only', null] },
-      ]);
+      // Partner-only transactions now create deals normally
+      expect(actions).toHaveLength(1);
+      expect(actions[0]).toHaveProperty('Create');
     });
 
     it('returns noop for archived-app eval events', () => {

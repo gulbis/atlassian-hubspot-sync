@@ -6,10 +6,10 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc --watch",
-    "once": "node --max-old-space-size=6144 out/bin/run-once.js",
-    "dry-run": "node --max-old-space-size=6144 out/bin/dry-run-report.js",
+    "once": "node --max-old-space-size=8192 out/bin/run-once.js",
+    "dry-run": "node --max-old-space-size=8192 out/bin/dry-run-report.js",
     "sample": "node out/bin/run-sample.js",
-    "sync": "node --max-old-space-size=6144 out/bin/run-sync.js",
+    "sync": "node --max-old-space-size=8192 out/bin/run-sync.js",
     "inflate": "node out/bin/inflate.js",
     "analyze-data-shift": "node out/bin/analyze-data-shift.js",
     "generate-test": "node out/bin/generate-test.js",
@@ -21,7 +21,7 @@
     "test-watch": "jest --watch"
   },
   "dependencies": {
-    "@hubspot/api-client": "^3.2.6",
+    "@hubspot/api-client": "^13.5.0",
     "@slack/web-api": "^6.0.0",
     "ansi-regex": "^6.0.1",
     "burner-email-providers": "^1.0.42",

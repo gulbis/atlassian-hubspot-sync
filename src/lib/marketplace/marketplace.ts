@@ -15,6 +15,7 @@ export class Marketplace {
 
   public licenses: License[] = [];
   public transactions: Transaction[] = [];
+  public orphanedTransactionAmount = 0;
 
   public constructor(private config?: MpacConfig) { }
 
@@ -54,6 +55,7 @@ export class Marketplace {
     const structured = buildAndVerifyStructures(licenses, transactions, console);
     this.licenses = structured.licenses;
     this.transactions = structured.transactions;
+    this.orphanedTransactionAmount = structured.orphanedTransactionAmount;
 
     console?.printInfo('MPAC', 'Validating MPAC records: Done');
   }
