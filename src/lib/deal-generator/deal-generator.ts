@@ -1,5 +1,7 @@
 import assert from "assert";
 import { Engine } from "../engine/engine";
+import { AssociationLabel } from "../hubspot/interfaces";
+import { AssociationLabelService } from "../hubspot/association-labels";
 import { RelatedLicenseSet } from "../license-matching/license-grouper";
 import { Table } from "../log/table";
 import { Deal } from "../model/deal";
@@ -124,40 +126,110 @@ export class DealGenerator {
 
   private associateDealContactsAndCompanies(group: RelatedLicenseSet, deal: Deal) {
     const records = group.flatMap(license => [license, ...license.transactions]);
-    const emails = [...new Set(records.flatMap(r => r.allContacts.map(c => c.data.email)))];
-    const contacts = (emails
-      .map(email => this.engine.hubspot.contactManager.getByEmail(email))
-      .filter(isPresent));
-    contacts.sort(sorter(c => c.isCustomer ? -1 : 0));
+    const labelService = this.engine.associationLabels;
 
-    // Associate deal with contacts (multiple contacts per deal is fine)
-    deal.contacts.clear();
-    for (const contact of contacts) {
-      deal.contacts.add(contact);
+    // Build role sets for label assignment
+    const techEmails = new Set(records.map(r => r.techContact.data.email));
+    const billingEmails = new Set(records.flatMap(r =>
+      r.billingContact ? [r.billingContact.data.email] : []
+    ));
+    const partnerEmails = new Set(records.flatMap(r =>
+      r.partnerContact ? [r.partnerContact.data.email] : []
+    ));
+
+    // Collect unique contacts with their role labels (deduplicated by entity)
+    const allEmails = [...new Set(records.flatMap(r => r.allContacts.map(c => c.data.email)))];
+    const contactLabelMap = new Map<import('../model/contact').Contact, AssociationLabel[]>();
+
+    for (const email of allEmails) {
+      const contact = this.engine.hubspot.contactManager.getByEmail(email);
+      if (!contact || contactLabelMap.has(contact)) continue;
+
+      const labels: AssociationLabel[] = [];
+      if (labelService) {
+        if (techEmails.has(email)) {
+          const l = labelService.resolveLabel('deal_contact_technical');
+          if (l) labels.push(l);
+        }
+        if (billingEmails.has(email)) {
+          const l = labelService.resolveLabel('deal_contact_billing');
+          if (l) labels.push(l);
+        }
+        if (partnerEmails.has(email)) {
+          const l = labelService.resolveLabel('deal_contact_partner');
+          if (l) labels.push(l);
+        }
+      }
+      contactLabelMap.set(contact, labels);
     }
 
-    // Associate deal with ONE company based on the technical contact.
-    // Tier 1: tech contact's existing HubSpot company association.
-    // Tier 2: match tech contact's email domain against company domains.
+    // Sort: labeled contacts first (tech > billing > partner), then unlabeled.
+    // Limit to 3 contacts (HubSpot association limit).
+    const sorted = [...contactLabelMap.entries()].sort(([, a], [, b]) => {
+      const score = (labels: AssociationLabel[]) =>
+        labels.some(l => l === labelService?.resolveLabel('deal_contact_technical')) ? 3 :
+        labels.some(l => l === labelService?.resolveLabel('deal_contact_billing')) ? 2 :
+        labels.some(l => l === labelService?.resolveLabel('deal_contact_partner')) ? 1 : 0;
+      return score(b) - score(a);
+    });
+    const topContacts = sorted.slice(0, 3);
+
+    deal.contacts.clear();
+    for (const [contact, labels] of topContacts) {
+      deal.contacts.add(contact, labels.length > 0 ? labels : undefined);
+    }
+
+    // Associate deal with ONE company.
+    // Tier 1: tech contact's company (HubSpot association, then domain fallback).
+    // Tier 2: if tech contact is at a partner domain, use billing contact's company instead.
     deal.companies.clear();
-    const techEmails = [...new Set(records.map(r => r.techContact.data.email))];
-    const techContact = techEmails
+
+    const isPartnerDomain = (email: string | undefined) => {
+      if (!email) return false;
+      const domain = email.split('@')[1]?.toLowerCase();
+      if (!domain) return false;
+      return this.engine.partnerDomains.has(domain)
+        || this.engine.eazybiPartnerDomains.has(domain)
+        || this.engine.eazybiCertifiedPartnerDomains.has(domain);
+    };
+
+    const findCompanyForContact = (contact: import('../model/contact').Contact | undefined) => {
+      if (!contact) return undefined;
+      const existing = contact.companies.getAll();
+      if (existing.length > 0) return existing[0];
+      const domain = contact.data.email?.split('@')[1]?.toLowerCase();
+      if (domain && !this.engine.freeEmailDomains.has(domain)) {
+        return this.engine.hubspot.companyManager.getByDomain(domain);
+      }
+      return undefined;
+    };
+
+    const techContact = [...techEmails]
       .map(email => this.engine.hubspot.contactManager.getByEmail(email))
       .filter(isPresent)[0];
 
-    if (techContact) {
-      const existingCompanies = techContact.companies.getAll();
-      if (existingCompanies.length > 0) {
-        deal.companies.add(existingCompanies[0]);
-      } else {
-        const domain = techContact.data.email?.split('@')[1]?.toLowerCase();
-        if (domain && !this.engine.freeEmailDomains.has(domain)) {
-          const company = this.engine.hubspot.companyManager.getByDomain(domain);
-          if (company) {
-            deal.companies.add(company);
-          }
-        }
+    let company = findCompanyForContact(techContact);
+
+    // If tech contact is at a partner domain, fall back to billing contact's company
+    if (techContact && isPartnerDomain(techContact.data.email)) {
+      const billingContact = [...billingEmails]
+        .map(email => this.engine.hubspot.contactManager.getByEmail(email))
+        .filter(isPresent)[0];
+      const billingCompany = findCompanyForContact(billingContact);
+      if (billingCompany) {
+        company = billingCompany;
       }
+      // If billing also has no company (or is also partner), keep tech contact's company
+    }
+
+    if (company) {
+      let companyLabels: AssociationLabel[] | undefined;
+      if (labelService) {
+        const isPartner = company.data.type === 'Partner';
+        const label = labelService.resolveLabel(isPartner ? 'deal_company_partner' : 'deal_company_customer');
+        if (label) companyLabels = [label];
+      }
+      deal.companies.add(company, companyLabels);
     }
   }
 

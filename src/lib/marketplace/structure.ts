@@ -189,9 +189,18 @@ class MpacStructurer {
       }
     }
 
+    const linkedTransactions = transactions.filter(t => t.license);
+    const orphanedTransactions = transactions.filter(t => !t.license);
+    const orphanedAmount = orphanedTransactions.reduce((sum, t) => sum + t.data.vendorAmount, 0);
+
+    if (orphanedTransactions.length > 0) {
+      this.console?.printInfo('MPAC Verifier', `${orphanedTransactions.length} transaction(s) without matching license (total: ${formatMoney(orphanedAmount)})`);
+    }
+
     return {
       licenses,
-      transactions: transactions.filter(t => t.license),
+      transactions: linkedTransactions,
+      orphanedTransactionAmount: orphanedAmount,
     };
   }
 

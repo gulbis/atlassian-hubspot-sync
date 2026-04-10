@@ -4,7 +4,7 @@ import {Transaction, uniqueTransactionLineId} from '../model/transaction'
 import { sorter } from "../util/helpers";
 import {ConsoleLogger} from '../log/console'
 
-export type EventMeta = 'partner-only' | 'mass-provider-only' | 'partner-and-mass-provider-only' | 'archived-app' | null;
+export type EventMeta = 'mass-provider-only' | 'archived-app' | null;
 
 export type RefundEvent = { type: 'refund', refundedTxs: Transaction[] };
 export type EvalEvent = { type: 'eval', meta: EventMeta, licenses: License[] };
@@ -86,17 +86,13 @@ export class EventGenerator {
       this.partnerDomains.has(domain) || this.eazybiPartnerDomains.has(domain) || this.eazybiCertifiedPartnerDomains.has(domain));
     const freeEmailDomains = [...domains].filter(domain => this.freeEmailDomains.has(domain));
 
-    if (domains.size == partnerDomains.length + freeEmailDomains.length) {
-      if (partnerDomains.length > 0 && freeEmailDomains.length > 0) {
-        return 'partner-and-mass-provider-only';
-      }
-      else if (partnerDomains.length > 0) {
-        return 'partner-only';
-      }
-      else if (freeEmailDomains.length > 0) {
-        return 'mass-provider-only';
-      }
+    if (domains.size == freeEmailDomains.length) {
+      // All contacts are free-email-providers — skip deal creation
+      return 'mass-provider-only';
     }
+    // Partner-only transactions are no longer skipped: deals are created normally.
+    // The deal-company association falls back to the billing contact's company
+    // when the tech contact is at a partner domain.
     return null;
   }
 

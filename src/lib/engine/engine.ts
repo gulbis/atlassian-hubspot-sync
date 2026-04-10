@@ -4,6 +4,7 @@ import { ContactTypeFlagger } from "../contact-generator/contact-types";
 import { updateContactsBasedOnMatchResults } from "../contact-generator/update-contacts";
 import { DataSet } from "../data/set";
 import { DealGenerator } from "../deal-generator/deal-generator";
+import { AssociationLabelService } from "../hubspot/association-labels";
 import { Hubspot } from "../hubspot/hubspot";
 import { FullEntity } from "../hubspot/interfaces";
 import { LicenseGrouper } from "../license-matching/license-grouper";
@@ -37,6 +38,7 @@ export interface EngineConfig {
   archivedApps?: Set<string>;
   dealProperties?: DealPropertyConfig;
   partnerPipeline?: PartnerPipelineConfig;
+  associationLabels?: AssociationLabelService;
 }
 
 export class Engine {
@@ -58,6 +60,7 @@ export class Engine {
   public hubspot!: Hubspot;
   public mpac!: Marketplace;
   public freeEmailDomains!: Set<string>;
+  public associationLabels?: AssociationLabelService;
 
   public constructor(config?: EngineConfig, public console?: ConsoleLogger, public logDir?: LogDir) {
     this.tallier = new Tallier(console);
@@ -69,6 +72,7 @@ export class Engine {
       dealDealName: 'Deal'
     };
     this.partnerPipelineConfig = config?.partnerPipeline;
+    this.associationLabels = config?.associationLabels;
   }
 
   public run(data: DataSet) {
@@ -147,7 +151,10 @@ export class Engine {
 
     this.printDownloadSummary(transactionTotal);
 
-    this.tallier.first('Transaction total', transactionTotal);
+    this.tallier.first('Transaction total', transactionTotal + this.mpac.orphanedTransactionAmount);
+    if (this.mpac.orphanedTransactionAmount !== 0) {
+      this.tallier.less('Orphaned transactions (no matching license)', this.mpac.orphanedTransactionAmount);
+    }
   }
 
   private printDownloadSummary(transactionTotal: number) {
