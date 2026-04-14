@@ -5,15 +5,12 @@ import { License } from "../model/license";
 import { Transaction } from "../model/transaction";
 import { KnownError } from "../util/errors";
 import { isPresent } from "../util/helpers";
-import { flagPartnersViaCoworkers } from "./contact-types";
 
 export function updateContactsBasedOnMatchResults(engine: Engine, allMatches: RelatedLicenseSet[]) {
   for (const license of allMatches) {
     const contacts = new Set(license
         .filter(license => license.data.technicalContact)
         .map(license => engine.hubspot.contactManager.getByEmail(license.data.technicalContact!.email)!));
-
-    flagPartnersViaCoworkers([...contacts]);
 
     for (const contact of contacts) {
       const items = [

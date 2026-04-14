@@ -238,16 +238,12 @@ export class Engine {
       }
     };
 
-    // Company-level domains (primary + secondary)
+    // Only use company-level domains (primary + secondary).
+    // Do NOT extract contact email domains — partner companies often have
+    // customer contacts auto-associated by HubSpot, which would contaminate
+    // the partner domain set with customer domains.
     for (const d of company.allDomains) {
       addDomain(d);
-    }
-
-    // Contact email domains (primary + secondary)
-    for (const contact of company.contacts.getAll()) {
-      for (const email of contact.allEmails) {
-        addDomain(email.split('@')[1]);
-      }
     }
   }
 

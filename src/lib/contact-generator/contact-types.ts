@@ -24,7 +24,6 @@ export class ContactTypeFlagger {
 
     // Flagging contacts and companies
     this.flagKnownContactTypesByDomain();
-    this.setPartnersViaCoworkers();
   }
 
   private identifyContactTypesFromRecordDomains(records: (Transaction | License)[]) {
@@ -72,42 +71,6 @@ export class ContactTypeFlagger {
     }
   }
 
-  private setPartnersViaCoworkers() {
-    for (const contact of this.contactManager.getAll()) {
-      const companies = contact.companies.getAll();
-      const coworkers = companies.flatMap(company => company.contacts.getAll());
-      flagPartnersViaCoworkers(coworkers);
-    }
-  }
-
-}
-
-export function flagPartnersViaCoworkers(coworkers: Contact[]) {
-  const hasEazybiCertified = coworkers.some(c => c.data.contactType === 'certified_partner');
-  const hasEazybiPartner = coworkers.some(c => c.data.contactType === 'partner');
-  const hasMpacPartner = coworkers.some(c => c.data.contactType === 'atlassian_expert');
-
-  if (hasEazybiCertified) {
-    for (const coworker of coworkers) {
-      coworker.data.contactType = 'certified_partner';
-      for (const company of coworker.companies.getAll()) {
-        company.data.type = 'Partner';
-      }
-    }
-  } else if (hasEazybiPartner) {
-    for (const coworker of coworkers) {
-      coworker.data.contactType = 'partner';
-      for (const company of coworker.companies.getAll()) {
-        company.data.type = 'Partner';
-      }
-    }
-  } else if (hasMpacPartner) {
-    for (const coworker of coworkers) {
-      coworker.data.contactType = 'atlassian_expert';
-      // Do NOT set company.data.type = 'Partner' for MPAC-only partners
-      // to prevent domain escalation creep on subsequent syncs
-    }
-  }
 }
 
 function maybeAddDomain(set: Set<string>, email: string | undefined) {

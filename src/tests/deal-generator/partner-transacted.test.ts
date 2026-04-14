@@ -68,7 +68,9 @@ it(`Unsets partner domain on contact if latest record is not partner-transacted`
   const [c1, c2] = contacts;
 
   expect(c1.isPartner).toBeTruthy();
-  expect(c2.isPartner).toBeTruthy();
+  // c2 has a unique email domain that is NOT a partner domain —
+  // partner status does not propagate via coworkers
+  expect(c2.isPartner).toBeFalsy();
 
   expect(c2.data.lastAssociatedPartner).toEqual(null);
 });
