@@ -125,8 +125,9 @@ export default class HubspotAPI {
     const labeled = inputs.filter(i => i.labels?.length);
     const unlabeled = inputs.filter(i => !i.labels?.length);
 
+    // HubSpot v4 batch endpoints accept max 100 inputs per request
     // Unlabeled: v4 batch associate default
-    for (const inputBatch of batchesOf(unlabeled, 500)) {
+    for (const inputBatch of batchesOf(unlabeled, 100)) {
       await this.v4AssocRequest(
         'POST',
         `/crm/v4/associations/${fromKind}/${toKind}/batch/associate/default`,
@@ -136,7 +137,7 @@ export default class HubspotAPI {
     }
 
     // Labeled: v4 batch create with types
-    for (const inputBatch of batchesOf(labeled, 500)) {
+    for (const inputBatch of batchesOf(labeled, 100)) {
       await this.v4AssocRequest(
         'POST',
         `/crm/v4/associations/${fromKind}/${toKind}/batch/create`,
@@ -147,7 +148,7 @@ export default class HubspotAPI {
   }
 
   public async deleteAssociations(fromKind: EntityKind, toKind: EntityKind, inputs: Association[]): Promise<void> {
-    for (const inputBatch of batchesOf(inputs, 500)) {
+    for (const inputBatch of batchesOf(inputs, 100)) {
       await this.v4AssocRequest(
         'POST',
         `/crm/v4/associations/${fromKind}/${toKind}/batch/archive`,
