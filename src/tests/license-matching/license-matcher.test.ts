@@ -4,9 +4,18 @@ import { LicenseMatcher, ScorableLicense } from '../../lib/license-matching/lice
 const NINETY_DAYS_MS = 1000 * 60 * 60 * 24 * 90;
 const ONE_DAY_MS = 1000 * 60 * 60 * 24;
 const THRESHOLD = 130;
+const NO_PARTNER_DOMAINS = {
+  partnerDomains: new Set<string>(),
+  eazybiPartnerDomains: new Set<string>(),
+  eazybiCertifiedPartnerDomains: new Set<string>(),
+};
 
 function fakeContact(): Contact {
   return {} as Contact;
+}
+
+function fakeContactWithEmail(email: string): Contact {
+  return { data: { email } } as Contact;
 }
 
 function makeScorableLicense(overrides: Partial<ScorableLicense> = {}): ScorableLicense {
@@ -27,7 +36,7 @@ function makeScorableLicense(overrides: Partial<ScorableLicense> = {}): Scorable
 
 describe('LicenseMatcher', () => {
 
-  const matcher = new LicenseMatcher(THRESHOLD);
+  const matcher = new LicenseMatcher(THRESHOLD, NO_PARTNER_DOMAINS);
 
   describe('90-day window', () => {
 
@@ -238,7 +247,7 @@ describe('LicenseMatcher', () => {
   describe('bail optimization', () => {
 
     it('bails early when score exceeds threshold', () => {
-      const matcherNoBail = new LicenseMatcher(THRESHOLD);
+      const matcherNoBail = new LicenseMatcher(THRESHOLD, NO_PARTNER_DOMAINS);
       // Address match (80) + Company match (80) = 160 >= 130
       // Should bail after company
       const l1 = makeScorableLicense({
@@ -280,7 +289,7 @@ describe('LicenseMatcher', () => {
           logs.push({ score, reason });
         },
       };
-      const matcherWithLog = new LicenseMatcher(THRESHOLD, scoreLog);
+      const matcherWithLog = new LicenseMatcher(THRESHOLD, NO_PARTNER_DOMAINS, scoreLog);
       const l1 = makeScorableLicense({
         techContactAddress: '123 main street',
         company: 'acme corp',
@@ -292,6 +301,86 @@ describe('LicenseMatcher', () => {
       matcherWithLog.isSimilarEnough(l1, l2);
       // Should have logged all 6 fields even though it matched early
       expect(logs.length).toBe(6);
+    });
+
+  });
+
+  describe('partner billing contact exclusion', () => {
+
+    const partnerDomains = {
+      partnerDomains: new Set(['cprime.com', 'eficode.com']),
+      eazybiPartnerDomains: new Set(['adaptavist.com']),
+      eazybiCertifiedPartnerDomains: new Set(['clearvision-cm.com']),
+    };
+    const matcherWithPartners = new LicenseMatcher(THRESHOLD, partnerDomains);
+
+    // Use distinct company/address/domain to ensure matches come only from billing contact, not similarity
+    const distinctLicense1 = {
+      company: 'boeing aerospace corporation',
+      companyDomain: 'boeing.com',
+      techContactAddress: '100 north riverside, chicago il',
+      techContactEmailPart: 'jorge.gonzalez',
+      techContactName: 'jorge gonzalez',
+      techContactPhone: '+1-312-555-0100',
+    };
+    const distinctLicense2 = {
+      company: 'harvard business publishing',
+      companyDomain: 'harvardbusiness.org',
+      techContactAddress: '60 harvard way, boston ma',
+      techContactEmailPart: 'bobby.deng',
+      techContactName: 'bobby deng',
+      techContactPhone: '+1-617-555-0200',
+    };
+
+    it('does NOT match on shared billing contact when contact is at a partner domain', () => {
+      const partnerContact = fakeContactWithEmail('tom@cprime.com');
+      const l1 = makeScorableLicense({ ...distinctLicense1, billingContact: partnerContact });
+      const l2 = makeScorableLicense({ ...distinctLicense2, billingContact: partnerContact });
+      expect(matcherWithPartners.isSimilarEnough(l1, l2)).toBe(false);
+    });
+
+    it('does NOT match on shared billing contact in eazyBI partner domains', () => {
+      const partnerContact = fakeContactWithEmail('sales@adaptavist.com');
+      const l1 = makeScorableLicense({ ...distinctLicense1, billingContact: partnerContact });
+      const l2 = makeScorableLicense({ ...distinctLicense2, billingContact: partnerContact });
+      expect(matcherWithPartners.isSimilarEnough(l1, l2)).toBe(false);
+    });
+
+    it('does NOT match on shared billing contact in certified partner domains', () => {
+      const partnerContact = fakeContactWithEmail('billing@clearvision-cm.com');
+      const l1 = makeScorableLicense({ ...distinctLicense1, billingContact: partnerContact });
+      const l2 = makeScorableLicense({ ...distinctLicense2, billingContact: partnerContact });
+      expect(matcherWithPartners.isSimilarEnough(l1, l2)).toBe(false);
+    });
+
+    it('still matches on shared billing contact when contact is NOT a partner', () => {
+      const customerContact = fakeContactWithEmail('billing@customercorp.com');
+      const l1 = makeScorableLicense({ ...distinctLicense1, billingContact: customerContact });
+      const l2 = makeScorableLicense({ ...distinctLicense2, billingContact: customerContact });
+      expect(matcherWithPartners.isSimilarEnough(l1, l2)).toBe(true);
+    });
+
+    it('does NOT match tech/billing cross when billing is a partner contact', () => {
+      const partnerContact = fakeContactWithEmail('tom@eficode.com');
+      const l1 = makeScorableLicense({ ...distinctLicense1, techContact: partnerContact });
+      const l2 = makeScorableLicense({ ...distinctLicense2, billingContact: partnerContact });
+      expect(matcherWithPartners.isSimilarEnough(l1, l2)).toBe(false);
+    });
+
+    it('still matches tech/billing cross when billing is a customer contact', () => {
+      const sharedContact = fakeContactWithEmail('admin@customercorp.com');
+      const l1 = makeScorableLicense({ ...distinctLicense1, techContact: sharedContact });
+      const l2 = makeScorableLicense({ ...distinctLicense2, billingContact: sharedContact });
+      expect(matcherWithPartners.isSimilarEnough(l1, l2)).toBe(true);
+    });
+
+    it('still matches on shared tech contacts regardless of partner status', () => {
+      // Tech contacts should always match — a partner tech contact means
+      // they are genuinely the same installation
+      const techContact = fakeContactWithEmail('tech@cprime.com');
+      const l1 = makeScorableLicense({ techContact });
+      const l2 = makeScorableLicense({ techContact });
+      expect(matcherWithPartners.isSimilarEnough(l1, l2)).toBe(true);
     });
 
   });

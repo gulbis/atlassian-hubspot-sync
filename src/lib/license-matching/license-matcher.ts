@@ -25,7 +25,26 @@ interface ScoreLog {
 
 export class LicenseMatcher {
 
-  public constructor(private threshold: number, private scoreLog?: ScoreLog) { }
+  private partnerDomains: Set<string>;
+
+  public constructor(
+    private threshold: number,
+    partnerDomainSets: { partnerDomains: Set<string>, eazybiPartnerDomains: Set<string>, eazybiCertifiedPartnerDomains: Set<string> },
+    private scoreLog?: ScoreLog,
+  ) {
+    // Merge all partner domain sets into one for efficient lookup
+    this.partnerDomains = new Set([
+      ...partnerDomainSets.partnerDomains,
+      ...partnerDomainSets.eazybiPartnerDomains,
+      ...partnerDomainSets.eazybiCertifiedPartnerDomains,
+    ]);
+  }
+
+  private isPartnerContact(contact: Contact | null): boolean {
+    if (!contact) return false;
+    const domain = contact.data?.email?.split('@')[1]?.toLowerCase();
+    return !!domain && this.partnerDomains.has(domain);
+  }
 
   public isSimilarEnough(
     l1: ScorableLicense,
@@ -44,12 +63,17 @@ export class LicenseMatcher {
       return true;
     }
 
-    if (l1.billingContact && l1.billingContact === l2.billingContact) {
+    // Skip billing contact match when the shared contact is a partner —
+    // partner employees appear as billing contacts on many unrelated customer licenses.
+    if (l1.billingContact && l1.billingContact === l2.billingContact && !this.isPartnerContact(l1.billingContact)) {
       this.scoreLog?.logScore(1000, 'Same billing contacts');
       return true;
     }
 
-    if (l1.techContact === l2.billingContact || l2.techContact === l1.billingContact) {
+    if (
+      (l1.techContact === l2.billingContact && !this.isPartnerContact(l2.billingContact)) ||
+      (l2.techContact === l1.billingContact && !this.isPartnerContact(l1.billingContact))
+    ) {
       this.scoreLog?.logScore(1000, 'Same tech/billing contacts');
       return true;
     }

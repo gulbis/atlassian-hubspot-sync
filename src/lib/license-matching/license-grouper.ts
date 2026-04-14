@@ -14,6 +14,7 @@ export class LicenseGrouper {
 
   constructor(
     private freeEmailDomains: Set<string>,
+    private partnerDomainSets: { partnerDomains: Set<string>, eazybiPartnerDomains: Set<string>, eazybiCertifiedPartnerDomains: Set<string> },
     private console?: ConsoleLogger,
     private logDir?: LogDir,
   ) { }
@@ -22,7 +23,7 @@ export class LicenseGrouper {
     return withAutoClose(this.logDir?.scoreLogger(), scoreLogger => {
 
       const threshold = 130;
-      const scorer = new LicenseMatcher(threshold, scoreLogger);
+      const scorer = new LicenseMatcher(threshold, this.partnerDomainSets, scoreLogger);
       this.matchLicenses(licenses, scorer, scoreLogger);
 
       const matches = (Array.from(new Set(this.matchGroups.values()))

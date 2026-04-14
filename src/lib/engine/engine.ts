@@ -121,6 +121,11 @@ export class Engine {
     this.logStep('Running Scoring Engine');
     const licenseGrouper = new LicenseGrouper(
       this.freeEmailDomains,
+      {
+        partnerDomains: this.partnerDomains,
+        eazybiPartnerDomains: this.eazybiPartnerDomains,
+        eazybiCertifiedPartnerDomains: this.eazybiCertifiedPartnerDomains,
+      },
       this.console,
       this.logDir,
     );
