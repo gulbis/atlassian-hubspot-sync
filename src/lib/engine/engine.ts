@@ -106,6 +106,9 @@ export class Engine {
     );
     contactTypeFlagger.identifyAndFlagContactTypes();
 
+    this.logStep('Flagging company types by partner domains');
+    this.flagCompanyTypes();
+
     this.logStep('Generating contacts');
     const contactGenerator = new ContactGenerator(
       this.mpac.licenses,
@@ -272,6 +275,34 @@ export class Engine {
       }, null, 2));
       stream.close();
     }
+  }
+
+  private static PARTNER_TYPES: ReadonlySet<string> = new Set(['Partner', 'Certified Partner', 'Atlassian Expert']);
+
+  private flagCompanyTypes() {
+    let tagged = 0;
+    let cleared = 0;
+    for (const company of this.hubspot.companyManager.getAll()) {
+      const domains = company.allDomains.map(d => d.toLowerCase());
+      const isCertified = domains.some(d => this.eazybiCertifiedPartnerDomains.has(d));
+      const isPartner = domains.some(d => this.eazybiPartnerDomains.has(d));
+      const isExpert = domains.some(d => this.partnerDomains.has(d));
+
+      if (isCertified) {
+        company.data.type = 'Certified Partner';
+        tagged++;
+      } else if (isPartner) {
+        company.data.type = 'Partner';
+        tagged++;
+      } else if (isExpert) {
+        company.data.type = 'Atlassian Expert';
+        tagged++;
+      } else if (company.data.type && Engine.PARTNER_TYPES.has(company.data.type)) {
+        company.data.type = null;
+        cleared++;
+      }
+    }
+    this.console?.printInfo('Engine', `Company types: ${tagged} tagged, ${cleared} cleared`);
   }
 
   private enrichContactsWithAttribution(rawAttributions: RawAttribution[]) {

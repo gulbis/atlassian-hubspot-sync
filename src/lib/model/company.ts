@@ -5,7 +5,7 @@ import { Contact } from "./contact";
 
 type CompanyData = {
   name: string;
-  type: 'Partner' | null;
+  type: 'Partner' | 'Certified Partner' | 'Atlassian Expert' | null;
 };
 
 export class Company extends Entity<CompanyData> {
@@ -50,8 +50,22 @@ export const CompanyAdapter: EntityAdapter<CompanyData> = {
     },
     type: {
       property: 'type',
-      down: type => type === 'PARTNER' ? 'Partner' : null,
-      up: type => type === 'Partner' ? 'PARTNER' : '',
+      down: type => {
+        switch (type) {
+          case 'PARTNER': return 'Partner';
+          case 'CERTIFIED': return 'Certified Partner';
+          case 'ATLASSIAN_PARTNER': return 'Atlassian Expert';
+          default: return null;
+        }
+      },
+      up: type => {
+        switch (type) {
+          case 'Partner': return 'PARTNER';
+          case 'Certified Partner': return 'CERTIFIED';
+          case 'Atlassian Expert': return 'ATLASSIAN_PARTNER';
+          default: return '';
+        }
+      },
     },
   },
 

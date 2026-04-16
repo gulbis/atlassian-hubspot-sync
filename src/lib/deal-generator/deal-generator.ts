@@ -225,7 +225,7 @@ export class DealGenerator {
     if (company) {
       let companyLabels: AssociationLabel[] | undefined;
       if (labelService) {
-        const isPartner = company.data.type === 'Partner';
+        const isPartner = company.data.type !== null;
         const label = labelService.resolveLabel(isPartner ? 'deal_company_partner' : 'deal_company_customer');
         if (label) companyLabels = [label];
       }

@@ -523,4 +523,38 @@ describe('Company field mappings', () => {
     expect(changes['type']).toBe('');
   });
 
+  it('imports CERTIFIED as Certified Partner', () => {
+    const companyManager = makeCompanyManager();
+    companyManager.importEntities([{
+      id: 'company-1',
+      properties: { name: 'Cert Corp', type: 'CERTIFIED' },
+      associations: [],
+    }]);
+    expect(companyManager.getArray()[0].data.type).toBe('Certified Partner');
+  });
+
+  it('imports ATLASSIAN_PARTNER as Atlassian Expert', () => {
+    const companyManager = makeCompanyManager();
+    companyManager.importEntities([{
+      id: 'company-1',
+      properties: { name: 'Expert Corp', type: 'ATLASSIAN_PARTNER' },
+      associations: [],
+    }]);
+    expect(companyManager.getArray()[0].data.type).toBe('Atlassian Expert');
+  });
+
+  it('converts Certified Partner back to CERTIFIED for upload', () => {
+    const companyManager = makeCompanyManager();
+    const company = companyManager.create({ name: 'Cert Corp', type: 'Certified Partner' });
+    const changes = company.getPropertyChanges() as Record<string, string>;
+    expect(changes['type']).toBe('CERTIFIED');
+  });
+
+  it('converts Atlassian Expert back to ATLASSIAN_PARTNER for upload', () => {
+    const companyManager = makeCompanyManager();
+    const company = companyManager.create({ name: 'Expert Corp', type: 'Atlassian Expert' });
+    const changes = company.getPropertyChanges() as Record<string, string>;
+    expect(changes['type']).toBe('ATLASSIAN_PARTNER');
+  });
+
 });
