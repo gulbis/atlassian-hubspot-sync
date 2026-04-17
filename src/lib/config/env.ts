@@ -149,6 +149,7 @@ export function engineConfigFromENV(): EngineConfig {
   const partnerPipelineId = optional('HUBSPOT_PIPELINE_PARTNER');
   return {
     partnerDomains: new Set(optional('PARTNER_DOMAINS')?.split(/\s*,\s*/g) ?? []),
+    partnerDomainExclusions: new Set(optional('PARTNER_DOMAIN_EXCLUSIONS')?.split(/\s*,\s*/g) ?? []),
     appToPlatform: Object.fromEntries<string>(
       required('ADDONKEY_PLATFORMS')
         .split(',')

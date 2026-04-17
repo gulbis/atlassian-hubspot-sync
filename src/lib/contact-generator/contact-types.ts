@@ -13,6 +13,7 @@ export class ContactTypeFlagger {
     private customerDomains: Set<string>,
     private eazybiPartnerDomains: Set<string>,
     private eazybiCertifiedPartnerDomains: Set<string>,
+    private partnerDomainExclusions: Set<string> = new Set(),
   ) { }
 
   public identifyAndFlagContactTypes() {
@@ -42,6 +43,11 @@ export class ContactTypeFlagger {
   }
 
   private separatePartnerDomainsFromCustomerDomains() {
+    // Remove explicitly excluded domains from partner set
+    for (const domain of this.partnerDomainExclusions) {
+      this.partnerDomains.delete(domain);
+    }
+
     // If it's a partner domain, then it's not a customer domain
     for (const domain of this.partnerDomains) {
       this.customerDomains.delete(domain);

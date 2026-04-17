@@ -34,6 +34,7 @@ export type PartnerPipelineConfig = {
 
 export interface EngineConfig {
   partnerDomains?: Set<string>;
+  partnerDomainExclusions?: Set<string>;
   appToPlatform?: { [addonKey: string]: string };
   archivedApps?: Set<string>;
   dealProperties?: DealPropertyConfig;
@@ -46,6 +47,7 @@ export class Engine {
   private step = 0;
 
   public partnerDomains = new Set<string>();
+  public partnerDomainExclusions = new Set<string>();
   public eazybiPartnerDomains = new Set<string>();
   public eazybiCertifiedPartnerDomains = new Set<string>();
   private customerDomains = new Set<string>();
@@ -68,6 +70,7 @@ export class Engine {
     this.appToPlatform = config?.appToPlatform ?? Object.create(null);
     this.archivedApps = config?.archivedApps ?? new Set();
     this.partnerDomains = config?.partnerDomains ?? new Set();
+    this.partnerDomainExclusions = config?.partnerDomainExclusions ?? new Set();
     this.dealPropertyConfig = config?.dealProperties ?? {
       dealDealName: 'Deal'
     };
@@ -103,6 +106,7 @@ export class Engine {
       this.customerDomains,
       this.eazybiPartnerDomains,
       this.eazybiCertifiedPartnerDomains,
+      this.partnerDomainExclusions,
     );
     contactTypeFlagger.identifyAndFlagContactTypes();
 
